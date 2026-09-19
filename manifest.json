@@ -1,0 +1,14 @@
+{
+  "background_color": "#f4e7df",
+  "dir": "auto",
+  "display": "standalone",
+  "name": "sakavichall1937.github",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "sakavichall1937.github",
+  "start_url": "/",
+  "theme_color": "#f2a4a4",
+  "description": "Планер для составления меню и списка покупок",
+  "lang": "ru",
+  "prefer_related_applications": true
+}

@@ -1,0 +1,2416 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Умный планировщик питания — Советск</title>
+
+<!-- ===== PWA ===== -->
+<meta name="theme-color" content="#3498db">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Питание">
+<meta name="application-name" content="Питание">
+<meta name="description" content="Умный планировщик питания и покупок с учётом бюджета и цикла">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f4f6f8; color: #2c3e50; line-height: 1.5; padding: 16px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .container { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 16px; }
+  h2 { font-size: 17px; margin-bottom: 12px; }
+  h3 { font-size: 15px; margin-bottom: 8px; }
+  h4 { font-size: 14px; margin-bottom: 8px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; background: white;
+    padding: 4px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow-x: auto; }
+  .tab { flex: 1; padding: 10px 12px; border: none; background: none; font-size: 14px;
+    font-weight: 600; cursor: pointer; border-radius: 8px; color: #7f8c8d; white-space: nowrap;
+    transition: background .15s, color .15s; }
+  .tab:hover:not(.active) { background: #f8f9fa; color: #2c3e50; }
+  .tab.active { background: #3498db; color: white; }
+  .panel { display: none; } .panel.active { display: block; }
+  .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .row > * { flex: 1; min-width: 120px; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; color: #7f8c8d; margin-bottom: 4px; font-weight: 600; }
+  input, select, textarea { width: 100%; padding: 9px 11px; font-size: 14px;
+    border: 2px solid #e1e5e9; border-radius: 8px; font-family: inherit; background: white; }
+  input:focus, select:focus { outline: none; border-color: #3498db; }
+  .btn { padding: 9px 16px; border-radius: 8px; border: none; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: filter .15s; }
+  .btn:hover { filter: brightness(0.95); }
+  .btn-primary { background: #3498db; color: white; }
+  .btn-secondary { background: #ecf0f1; color: #2c3e50; }
+  .btn-danger { background: #e74c3c; color: white; }
+  .btn-pink { background: #e91e63; color: white; }
+  .btn-mini { padding: 3px 8px; font-size: 12px; border-radius: 6px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .empty { color: #95a5a6; font-style: italic; padding: 16px 0; text-align: center; font-size: 14px; }
+  .profile-item { display: flex; justify-content: space-between; align-items: center;
+    padding: 12px; border: 2px solid #ecf0f1; border-radius: 10px; margin-bottom: 8px; cursor: pointer; }
+  .profile-item.active { border-color: #3498db; background: #ebf5fb; }
+  .profile-item .name { font-size: 15px; font-weight: 700; }
+  .profile-item .meta { font-size: 12px; color: #7f8c8d; margin-top: 3px; }
+  .kbju-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px; margin-top: 10px; }
+  .kbju-cell { background: #f8f9fa; border-radius: 8px; padding: 10px; text-align: center; }
+  .kbju-cell .label { font-size: 11px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kbju-cell .value { font-size: 18px; font-weight: 700; margin-top: 2px; }
+  .day-card { background: white; border-radius: 10px; padding: 14px;
+    margin-bottom: 10px; border-left: 4px solid #3498db; }
+  .day-card.boosted { border-left-color: #9b59b6; }
+  .meal-row { display: flex; align-items: center; padding: 6px 0; font-size: 13px;
+    border-bottom: 1px dashed #ecf0f1; gap: 6px; flex-wrap: wrap; }
+  .meal-row:last-child { border-bottom: none; }
+  .meal-row.boost { background: #f8f0ff; border-radius: 6px; padding: 6px 8px; }
+  .meal-label { color: #7f8c8d; font-size: 11px; min-width: 90px; }
+  .meal-name { flex: 1; min-width: 100px; }
+  .meal-kcal { color: #3498db; font-weight: 600; min-width: 65px; text-align: right; font-size: 13px; }
+  .meal-icon-btn { background: #f8f9fa; border: 1px solid #e1e5e9; border-radius: 6px;
+    padding: 1px 5px; font-size: 12px; cursor: pointer; min-width: 24px; }
+  .meal-icon-btn:hover { background: #3498db; color: white; border-color: #3498db; }
+  .meal-icon-btn.star-active { background: #fff3cd; border-color: #ffc107; color: #f39c12; }
+  .factor-badge { display: inline-block; font-size: 11px; padding: 1px 6px;
+    background: #fff3cd; color: #b8860b; border-radius: 8px; margin-left: 4px; cursor: pointer; }
+  .factor-badge.base { background: #ecf0f1; color: #95a5a6; cursor: default; }
+  .price-badge { display: inline-block; font-size: 10px; padding: 1px 6px;
+    border-radius: 8px; margin-left: 4px; font-weight: 600; }
+  .price-badge.budget { background: #d5f4e6; color: #27ae60; }
+  .price-badge.mid { background: #ebf5fb; color: #2980b9; }
+  .price-badge.premium { background: #fadbd8; color: #c0392b; }
+  .freeze-tag { display: inline-block; font-size: 11px; padding: 1px 6px;
+    background: #e3f2fd; color: #1976d2; border-radius: 8px; margin-left: 4px; }
+  .shop-list { list-style: none; }
+  .shop-list li { display: flex; justify-content: space-between; padding: 8px 0;
+    border-bottom: 1px dashed #ecf0f1; font-size: 14px; gap: 10px; }
+  .shop-list .qty { color: #3498db; font-weight: 600; }
+  .shop-list .price { color: #27ae60; font-weight: 600; }
+  .total-row { display: flex; justify-content: space-between; padding: 12px 0;
+    font-weight: 700; font-size: 15px; border-top: 2px solid #ecf0f1; margin-top: 8px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 600; margin-left: 6px; }
+  .badge.ok { background: #d5f4e6; color: #27ae60; }
+  .badge.warn { background: #fdebd0; color: #e67e22; }
+  .badge.over { background: #fadbd8; color: #c0392b; }
+  .badge.star { background: #fff3cd; color: #b8860b; }
+  .tip { padding: 10px 12px; background: #ebf5fb; border-radius: 8px;
+    margin-bottom: 8px; font-size: 14px; border-left: 3px solid #3498db; }
+  .tip.warn { background: #fef5e7; border-left-color: #f39c12; }
+  .tip.green { background: #eafaf1; border-left-color: #27ae60; }
+  .question { padding: 10px 12px; background: #fff7e6; border-radius: 8px;
+    margin-bottom: 8px; font-size: 14px; border-left: 3px solid #f39c12; }
+  .switch-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 14px; }
+  .switch-row input { width: auto; flex: initial; }
+  .switch-row label { flex: 1; cursor: pointer; }
+  .stats-mini { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px;
+    color: #7f8c8d; margin-top: 6px; }
+  .stats-mini span strong { color: #2c3e50; }
+  .cycle-card { background: linear-gradient(135deg, #fff0f5 0%, #ffe4ec 100%);
+    border-radius: 12px; padding: 18px; margin-bottom: 14px; border: 2px solid #f8bbd0; }
+  .cycle-header { display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .phase-badge { display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 700; color: white; }
+  .cycle-day { font-size: 13px; color: #7f8c8d; font-weight: 600; }
+  .cycle-bar { display: flex; height: 24px; border-radius: 12px; overflow: hidden;
+    margin: 12px 0; font-size: 10px; color: white; font-weight: 600; }
+  .cycle-bar > div { display: flex; align-items: center; justify-content: center; }
+  .cycle-bar > div.dim { opacity: 0.35; }
+  .phase-products { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .phase-products span { background: white; padding: 4px 10px; border-radius: 12px;
+    font-size: 12px; border: 1px solid #f8bbd0; }
+  .cycle-divider { border-top: 1px dashed #f8bbd0; margin: 12px 0; }
+  .store-selector { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .store-btn { padding: 8px 16px; border-radius: 12px; border: 2px solid #e1e5e9;
+    background: white; font-size: 14px; font-weight: 600; cursor: pointer; color: #7f8c8d; }
+  .store-btn.active { border-color: #27ae60; background: #eafaf1; color: #27ae60; }
+  .pack-info { font-size: 11px; color: #95a5a6; margin-left: 4px; }
+  .compare-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  .compare-table th, .compare-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #ecf0f1; }
+  .compare-table th { font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; }
+  .compare-table td.price { text-align: right; font-weight: 600; }
+  .compare-table tr.best { background: #eafaf1; }
+  .pref-section { background: #f8f9fa; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+  .replace-list { list-style: none; }
+  .replace-list li { display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px; border: 1px solid #ecf0f1; border-radius: 8px; margin-bottom: 6px;
+    cursor: pointer; font-size: 14px; }
+  .replace-list li:hover { background: #ebf5fb; border-color: #3498db; }
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    justify-content: center; align-items: center; z-index: 100; padding: 20px; overflow-y: auto; }
+  .modal-bg.active { display: flex; }
+  .modal { background: white; border-radius: 14px; padding: 24px; max-width: 640px;
+    width: 100%; max-height: 90vh; overflow-y: auto; }
+  .recipe-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .recipe-meta { font-size: 13px; color: #7f8c8d; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; }
+  .recipe-section { margin-bottom: 18px; }
+  .recipe-section h3 { font-size: 14px; color: #34495e; text-transform: uppercase;
+    margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #ecf0f1; }
+  .ing-list { list-style: none; }
+  .ing-list li { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+  .ing-list .ing-amount { color: #3498db; font-weight: 700; background: #ebf5fb;
+    padding: 1px 10px; border-radius: 8px; font-size: 13px; }
+  .step-list { list-style: none; counter-reset: step; }
+  .step-list li { counter-increment: step; padding: 10px 0 10px 40px; position: relative; font-size: 14px; }
+  .step-list li::before { content: counter(step); position: absolute; left: 0; top: 8px;
+    width: 26px; height: 26px; background: #3498db; color: white; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+  .servings-stepper { display: inline-flex; align-items: center; gap: 8px;
+    background: #f8f9fa; padding: 6px 10px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+  .servings-stepper button { width: 26px; height: 26px; border-radius: 50%; border: none;
+    background: #3498db; color: white; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .servings-stepper .count { font-weight: 700; font-size: 15px; min-width: 20px; text-align: center; }
+  .freeze-box { background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-radius: 10px; padding: 14px; border-left: 4px solid #1976d2; }
+  .freeze-box .freeze-title { font-weight: 700; color: #1976d2; margin-bottom: 6px; }
+  .freeze-box.no-freeze { background: #f8f9fa; border-left-color: #95a5a6; }
+  .freeze-box.no-freeze .freeze-title { color: #7f8c8d; }
+  .help-text { font-size: 11px; color: #7f8c8d; margin-top: 4px; }
+  #installBanner { display: none; position: fixed; bottom: 16px; left: 16px; right: 16px;
+    background: #3498db; color: white; padding: 12px 16px; border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2); z-index: 99; align-items: center; gap: 12px; }
+  #installBanner button.install-btn { background: white; color: #3498db; border: none;
+    padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  #installBanner button.close-btn { background: transparent; border: none; color: white;
+    font-size: 22px; cursor: pointer; line-height: 1; }
+  @media (max-width: 600px) { .row > * { min-width: 100%; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🥗 Умный планировщик питания <span style="font-size:14px;color:#7f8c8d;">· Советск</span></h1>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('profile', this)">👤 Профиль</button>
+    <button class="tab" onclick="switchTab('menu', this)">📅 Меню</button>
+    <button class="tab" onclick="switchTab('shop', this)">🛒 Покупки</button>
+    <button class="tab" onclick="switchTab('tips', this)">💡 Советы</button>
+  </div>
+
+  <div id="panel-profile" class="panel active">
+    <div class="card">
+      <h2>Мои профили</h2>
+      <div id="profilesList"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="newProfile()">➕ Новый профиль</button></div>
+    </div>
+    <div class="card" id="profileEditor" style="display:none;">
+      <h2 id="editorTitle">Новый профиль</h2>
+      <div class="row">
+        <div class="field"><label>Имя</label><input type="text" id="p_name" placeholder="Например: Анна"></div>
+        <div class="field"><label>Пол</label>
+          <select id="p_gender" onchange="toggleCycleSection()">
+            <option value="female">Женский</option><option value="male">Мужской</option>
+          </select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Возраст, лет</label><input type="number" id="p_age" min="14" max="100" value="30"></div>
+        <div class="field"><label>Вес, кг</label><input type="number" id="p_weight" min="30" max="250" step="0.1" value="65"></div>
+        <div class="field"><label>Рост, см</label><input type="number" id="p_height" min="120" max="220" value="168"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>% жира (если знаете — точнее)</label>
+          <input type="number" id="p_bodyfat" min="3" max="60" step="0.1" placeholder="например, 28">
+          <div class="help-text">Если указать — BMR по формуле Кэтча-МакАрдла.</div>
+        </div>
+        <div class="field"><label>Уровень активности</label>
+          <select id="p_activity" onchange="syncStepsFromActivity()">
+            <option value="1.2">Сидячий</option>
+            <option value="1.375">Небольшая (1–3 р/нед)</option>
+            <option value="1.55" selected>Средняя (3–5 р/нед)</option>
+            <option value="1.725">Высокая (6–7 р/нед)</option>
+            <option value="1.9">Очень высокая</option>
+          </select></div>
+      </div>
+      <div class="field"><label>Среднее число шагов в день</label>
+        <input type="number" id="p_steps" min="0" max="50000" value="8500" oninput="syncActivityFromSteps()">
+        <div id="stepsHint" class="help-text"></div></div>
+      <div class="switch-row"><input type="checkbox" id="p_useSteps" checked onchange="syncActivityFromSteps()">
+        <label for="p_useSteps">📱 Использовать шаги вместо уровня тренировок</label></div>
+      <div class="field"><label>Цель</label>
+        <select id="p_goal">
+          <option value="lose">Похудение (−15%)</option>
+          <option value="maintain" selected>Поддержание веса</option>
+          <option value="gain">Набор массы (+15%)</option>
+        </select></div>
+      <div class="field"><label>Желаемый вес, кг (необязательно)</label>
+        <input type="number" id="p_targetWeight" min="30" max="250" step="0.1" placeholder="например, 55"></div>
+      <div class="pref-section"><h4>🍽 Что вы едите</h4>
+        <div class="switch-row"><input type="checkbox" id="p_likesFish" checked><label for="p_likesFish">🐟 Рыба</label></div>
+        <div class="switch-row"><input type="checkbox" id="p_likesMeat" checked><label for="p_likesMeat">🍖 Мясо</label></div>
+        <div class="switch-row"><input type="checkbox" id="p_likesEggs" checked><label for="p_likesEggs">🥚 Яйца</label></div>
+        <div class="switch-row"><input type="checkbox" id="p_likesDairy" checked><label for="p_likesDairy">🧀 Молочные</label></div>
+        <div class="switch-row"><input type="checkbox" id="p_likesSweets" checked><label for="p_likesSweets">🍫 Сладости в перекус</label></div>
+      </div>
+      <div class="switch-row"><input type="checkbox" id="p_vegetarian"><label for="p_vegetarian">🥦 Вегетарианское</label></div>
+      <div class="switch-row"><input type="checkbox" id="p_stress"><label for="p_stress">🧘 Режим «стресс»</label></div>
+      <div class="field"><label>🚫 Аллергии</label><input type="text" id="p_allergies" placeholder="орехи, лактоза"></div>
+      <div class="field"><label>👎 Не люблю</label><input type="text" id="p_dislikes" placeholder="лук, кабачок"></div>
+      <div id="cycleSection" style="display:none;">
+        <div class="cycle-divider"></div>
+        <h3>🌙 Менструальный цикл</h3>
+        <div class="switch-row"><input type="checkbox" id="p_cycle_enabled" onchange="toggleCycleFields()">
+          <label for="p_cycle_enabled">Учитывать цикл</label></div>
+        <div id="cycleFields" style="display:none;">
+          <div class="row"><div class="field"><label>Дата начала последней менструации</label><input type="date" id="p_cycle_start"></div></div>
+          <div class="row">
+            <div class="field"><label>Длина цикла</label><input type="number" id="p_cycle_length" min="20" max="40" value="28"></div>
+            <div class="field"><label>Длительность менструации</label><input type="number" id="p_period_length" min="2" max="10" value="5"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-pink" onclick="markPeriodToday()" type="button">🩸 Отметить начало сегодня</button></div>
+          <div id="cyclePreview" style="margin-top:10px;font-size:13px;color:#7f8c8d;"></div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn btn-primary" onclick="saveProfile()">💾 Сохранить</button>
+        <button class="btn btn-secondary" onclick="cancelEdit()">Отмена</button>
+        <button class="btn btn-danger" id="deleteBtn" onclick="deleteProfile()" style="display:none;">Удалить</button>
+      </div>
+    </div>
+    <div class="card" id="kbjuCard" style="display:none;"><h2>Ваша суточная норма</h2><div id="kbjuResult"></div></div>
+    <div id="cycleStatusCard"></div>
+    <div class="card" id="favoritesCard" style="display:none;"><h2>⭐ Любимые блюда <span id="favCount" class="badge star"></span></h2><div id="favoritesList"></div></div>
+  </div>
+
+  <div id="panel-menu" class="panel">
+    <div class="card">
+      <h2>Генерация меню на неделю</h2>
+      <div class="row">
+        <div class="field"><label>Профиль</label><select id="menuProfile" onchange="onMenuProfileChange()"></select></div>
+        <div class="field"><label>Порций (на семью)</label><input type="number" id="menuServings" min="1" max="20" value="2"></div>
+        <div class="field"><label>Приёмов пищи в день</label>
+          <select id="menuMealsPerDay">
+            <option value="3">3 (завтрак, обед, ужин)</option>
+            <option value="4">4 (+ 1 перекус)</option>
+            <option value="5" selected>5 (+ 2 перекуса)</option>
+            <option value="6">6 (+ 3 перекуса)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>💰 Бюджет на неделю, ₽ (на всех)</label>
+          <input type="number" id="menuBudget" min="0" value="5000" step="500" oninput="updateBudgetHint()">
+          <div id="budgetHint" class="help-text"></div>
+        </div>
+        <div class="field"><label>Ценовой фильтр блюд</label>
+          <select id="menuPriceFilter">
+            <option value="auto" selected>🎯 Авто (по бюджету)</option>
+            <option value="budget">🟢 Только бюджетные</option>
+            <option value="budget_mid">🟢🔵 Бюджетные и средние</option>
+            <option value="all">🌐 Все категории</option>
+            <option value="premium">🔴 Премиум (можно дорогие)</option>
+          </select>
+        </div>
+      </div>
+      <div class="switch-row"><input type="checkbox" id="useFavorites"><label for="useFavorites">⭐ Только из любимых</label></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="generateMenu()">🎲 Сгенерировать меню</button>
+        <button class="btn btn-secondary" onclick="clearMenuPlan()">Очистить</button>
+      </div>
+      <div class="tip" style="margin-top:10px;font-size:12px;">
+        💡 После генерации система <strong>автоматически подгоняет корзину под бюджет ±1500 ₽</strong>.
+        Если у вас несколько профилей — бюджет делится между всеми, у кого есть меню.
+      </div>
+    </div>
+    <div id="menuProfilesSummary"></div>
+    <div id="cycleOnMenu"></div>
+    <div id="menuOutput"></div>
+  </div>
+
+  <div id="panel-shop" class="panel">
+    <div class="card">
+      <h2>🏪 Выбор магазина</h2>
+      <div class="store-selector" id="storeSelector"></div>
+      <p style="font-size:12px;color:#7f8c8d;margin-top:8px;">Цены — Калининградская область, сентябрь 2026 г.</p>
+    </div>
+    <div class="card"><h2>👥 Для кого</h2>
+      <div class="btn-row" style="margin-bottom:10px;">
+        <button class="btn btn-secondary btn-mini" onclick="selectAllShopProfiles()">✓ Все</button>
+        <button class="btn btn-secondary btn-mini" onclick="selectNoneShopProfiles()">✗ Никто</button>
+      </div>
+      <div id="shopProfileSelector"></div></div>
+    <div class="card"><h2>Бюджет на неделю</h2>
+      <div class="row"><div class="field"><label>Сумма, ₽</label>
+        <input type="number" id="budget" min="0" value="5000" oninput="renderShopping()">
+      </div></div></div>
+    <div class="card"><h2>🛒 Список покупок</h2>
+      <div id="shoppingOutput"><div class="empty">Сначала сгенерируйте меню</div></div></div>
+    <div class="card" id="compareCard" style="display:none;"><h2>📊 Сравнение сетей</h2><div id="compareOutput"></div></div>
+  </div>
+
+  <div id="panel-tips" class="panel">
+    <div class="card"><h2>🌦️ Сезонные советы</h2><div id="seasonalTips"></div></div>
+    <div class="card" id="phaseTipsCard" style="display:none;"><h2>🌙 Питание по фазе цикла</h2><div id="phaseTips"></div></div>
+    <div class="card"><h2>💰 За что не переплачивать</h2><div id="moneyTips"></div></div>
+    <div class="card" id="prepCard"><h2>🧊 Заготовки впрок</h2><div id="prepTips"></div></div>
+    <div class="card"><h2>❓ Уточняющие вопросы</h2><div id="questions"></div></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="recipeModal" onclick="if (event.target.id === 'recipeModal') closeRecipe();">
+  <div class="modal"><div id="recipeContent"></div>
+    <div class="btn-row" style="margin-top:16px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeRecipe()">Закрыть</button></div></div>
+</div>
+
+<div class="modal-bg" id="replaceModal" onclick="if (event.target.id === 'replaceModal') closeReplace();">
+  <div class="modal">
+    <h2 style="margin-bottom:6px;">🔄 Заменить блюдо</h2>
+    <p style="font-size:13px;color:#7f8c8d;margin-bottom:14px;" id="replaceSubtitle"></p>
+    <div id="replaceContent"></div>
+    <div class="btn-row" style="margin-top:16px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeReplace()">Отмена</button></div>
+  </div>
+</div>
+
+<div id="installBanner">
+  <span style="flex:1;font-size:14px;">📱 Установить как приложение?</span>
+  <button class="install-btn" onclick="installPwa()">Установить</button>
+  <button class="close-btn" onclick="document.getElementById('installBanner').style.display='none'">×</button>
+</div>
+
+<script>
+/* =========================================================
+   ФАЗЫ ЦИКЛА
+   ========================================================= */
+var PHASE_INFO = {
+  menstrual:{name:'Менструальная',emoji:'🌑',days:'дни 1–5',color:'#e74c3c',kcalAdjust:1.05,
+    tip:'Потери железа. Нужны железо + витамин C, омега-3.',
+    nutrients:['Железо','Витамин C','Омега-3','Магний'],
+    products:['Говядина','Печень','Бобовые','Шпинат','Цитрусовые','Лосось']},
+  follicular:{name:'Фолликулярная',emoji:'🌒',days:'дни 6–13',color:'#f39c12',kcalAdjust:1.0,
+    tip:'Энергия растёт. Хорошее время для белковых блюд.',
+    nutrients:['Белок','Фолаты','Витамины B'],
+    products:['Брокколи','Кимчи','Курица','Яйца','Шпинат']},
+  ovulation:{name:'Овуляторная',emoji:'🌕',days:'дни 14–16',color:'#27ae60',kcalAdjust:1.0,
+    tip:'Пик энергии. Нужны антиоксиданты и полезные жиры.',
+    nutrients:['Антиоксиданты','Полезные жиры','Цинк'],
+    products:['Клубника','Авокадо','Грецкие орехи','Тёмный шоколад','Оливковое масло']},
+  luteal:{name:'Лютеиновая',emoji:'🌘',days:'дни 17–28',color:'#8e44ad',kcalAdjust:1.10,
+    tip:'Растёт аппетит. Магний, B6 и сложные углеводы сглаживают ПМС.',
+    nutrients:['Магний','Витамин B6','Сложные углеводы'],
+    products:['Тёмный шоколад','Тыквенные семечки','Батат','Бурый рис','Овсянка','Банан']}
+};
+
+var MEAL_PLANS = {
+  3: [
+    { key:'Завтрак', cat:'Завтрак', share:0.30 },
+    { key:'Обед',    cat:'Обед',    share:0.40 },
+    { key:'Ужин',    cat:'Ужин',    share:0.30 }
+  ],
+  4: [
+    { key:'Завтрак', cat:'Завтрак', share:0.25 },
+    { key:'Обед',    cat:'Обед',    share:0.35 },
+    { key:'Ужин',    cat:'Ужин',    share:0.30 },
+    { key:'Перекус', cat:'Перекус', share:0.10 }
+  ],
+  5: [
+    { key:'Завтрак',   cat:'Завтрак', share:0.24 },
+    { key:'Обед',      cat:'Обед',    share:0.30 },
+    { key:'Ужин',      cat:'Ужин',    share:0.26 },
+    { key:'Перекус 1', cat:'Перекус', share:0.10 },
+    { key:'Перекус 2', cat:'Перекус', share:0.10 }
+  ],
+  6: [
+    { key:'Завтрак',        cat:'Завтрак', share:0.20 },
+    { key:'Второй завтрак', cat:'Перекус', share:0.10 },
+    { key:'Обед',           cat:'Обед',    share:0.25 },
+    { key:'Полдник',        cat:'Перекус', share:0.10 },
+    { key:'Ужин',           cat:'Ужин',    share:0.25 },
+    { key:'Перекус',        cat:'Перекус', share:0.10 }
+  ]
+};
+var MEAL_EMOJI_BY_KEY = {
+  'Завтрак':'🌅', 'Второй завтрак':'🥐', 'Обед':'☀️', 'Полдник':'🍵',
+  'Ужин':'🌙', 'Перекус':'🍎', 'Перекус 1':'🍎', 'Перекус 2':'🍫', 'Дополнительно':'➕'
+};
+
+/* =========================================================
+   БЛЮДА
+   ========================================================= */
+var DISHES = [
+  {id:'b1',name:'Овсянка с курагой и изюмом',cat:'Завтрак',kcal:340,p:12,f:8,c:52,priceTier:'budget',
+    ing:[['Овсяные хлопья','60','г'],['Молоко 2.5%','200','мл'],['Курага','30','г'],['Изюм','20','г'],['Мёд','15','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','stress_friendly','quick'],goals:['lose','maintain','gain'],phases:['luteal','follicular']},
+  {id:'b2',name:'Омлет с овощами',cat:'Завтрак',kcal:290,p:18,f:20,c:8,priceTier:'budget',
+    ing:[['Яйца','3','шт'],['Помидор','1','шт'],['Болгарский перец','0.5','шт'],['Масло растительное','5','мл'],['Петрушка','10','г']],
+    contains:['eggs'],seasons:['всесезон'],tags:['vegetarian','high_protein','quick'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'b3',name:'Сырники со сметаной',cat:'Завтрак',kcal:430,p:22,f:16,c:48,priceTier:'budget',
+    ing:[['Творог 9%','200','г'],['Мука','30','г'],['Яйцо','1','шт'],['Сахар','15','г'],['Сметана 15%','50','г'],['Масло растительное','10','мл']],
+    contains:['dairy','eggs'],seasons:['всесезон'],tags:['vegetarian','high_protein'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'b4',name:'Греческий йогурт с орехами',cat:'Завтрак',kcal:350,p:16,f:18,c:30,priceTier:'mid',
+    ing:[['Греческий йогурт','200','г'],['Грецкие орехи','30','г'],['Мёд','10','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','stress_friendly','quick','high_protein'],goals:['lose','maintain','gain'],phases:['luteal','ovulation']},
+  {id:'b5',name:'Тост с авокадо и яйцом',cat:'Завтрак',kcal:380,p:14,f:22,c:32,priceTier:'mid',
+    ing:[['Хлеб Бородинский','2','ломтика'],['Авокадо','0.5','шт'],['Яйцо','1','шт'],['Лимон','0.2','шт']],
+    contains:['eggs'],seasons:['весна','лето','осень'],tags:['vegetarian','stress_friendly'],goals:['maintain','lose','gain'],phases:['ovulation','follicular']},
+  {id:'b6',name:'Творог с бананом',cat:'Завтрак',kcal:300,p:22,f:8,c:32,priceTier:'budget',
+    ing:[['Творог 5%','180','г'],['Банан','1','шт'],['Корица','2','г'],['Мёд','10','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','high_protein','quick'],goals:['lose','maintain','gain'],phases:['luteal']},
+  {id:'b7',name:'Блины с дырочками',cat:'Завтрак',kcal:420,p:10,f:14,c:62,priceTier:'budget',
+    ing:[['Мука','150','г'],['Молоко 3.2%','300','мл'],['Яйцо','2','шт'],['Сахар','20','г'],['Масло растительное','15','мл']],
+    contains:['dairy','eggs'],seasons:['всесезон'],tags:['vegetarian'],goals:['gain','maintain','lose'],phases:['luteal']},
+  {id:'b8',name:'Ленивая овсянка',cat:'Завтрак',kcal:310,p:20,f:10,c:36,priceTier:'budget',
+    ing:[['Овсяные хлопья','40','г'],['Творог 5%','150','г'],['Йогурт натуральный','100','г'],['Семена льна','5','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','high_protein','quick'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'b9',name:'Шакшука',cat:'Завтрак',kcal:320,p:16,f:20,c:18,priceTier:'budget',
+    ing:[['Яйца','2','шт'],['Помидоры','200','г'],['Лук','60','г'],['Болгарский перец','80','г'],['Масло оливковое','10','мл'],['Петрушка','10','г']],
+    contains:['eggs'],seasons:['всесезон'],tags:['vegetarian','high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'b10',name:'Овсяноблин с сыром',cat:'Завтрак',kcal:360,p:22,f:16,c:30,priceTier:'budget',
+    ing:[['Овсяные хлопья','40','г'],['Яйцо','1','шт'],['Творожный сыр Almette','50','г'],['Огурец','50','г']],
+    contains:['dairy','eggs'],seasons:['всесезон'],tags:['vegetarian','high_protein','quick'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'b11',name:'Чиа-пудинг',cat:'Завтрак',kcal:280,p:10,f:12,c:34,priceTier:'mid',
+    ing:[['Семена чиа','30','г'],['Молоко 2.5%','200','мл'],['Малина','80','г'],['Мёд','10','г']],
+    contains:['dairy'],seasons:['лето','осень'],tags:['vegetarian','quick'],goals:['lose','maintain','gain'],phases:['luteal','ovulation']},
+  {id:'b12',name:'Яичница с томатами',cat:'Завтрак',kcal:350,p:20,f:26,c:6,priceTier:'budget',
+    ing:[['Яйца','3','шт'],['Помидор','2','шт'],['Сыр Российский','30','г'],['Масло сливочное 82.5%','5','г']],
+    contains:['eggs','dairy'],seasons:['всесезон'],tags:['vegetarian','high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'b13',name:'Панкейки',cat:'Завтрак',kcal:480,p:14,f:14,c:72,priceTier:'mid',
+    ing:[['Мука','100','г'],['Молоко 2.5%','150','мл'],['Яйцо','1','шт'],['Клубника','100','г'],['Мёд','20','г']],
+    contains:['eggs','dairy'],seasons:['лето','осень'],tags:['vegetarian'],goals:['gain','maintain','lose'],phases:['luteal']},
+  {id:'b14',name:'Рисовая каша с тыквой',cat:'Завтрак',kcal:330,p:8,f:10,c:56,priceTier:'budget',
+    ing:[['Рис','60','г'],['Молоко 2.5%','200','мл'],['Тыква','150','г'],['Масло сливочное 82.5%','10','г']],
+    contains:['dairy'],seasons:['осень','зима'],tags:['vegetarian'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'b15',name:'Кукурузная каша с сыром',cat:'Завтрак',kcal:370,p:14,f:14,c:48,priceTier:'budget',
+    ing:[['Кукурузная крупа','60','г'],['Молоко 2.5%','200','мл'],['Сыр Гауда','30','г'],['Масло сливочное 82.5%','5','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','high_protein'],goals:['maintain','gain','lose'],phases:['follicular']},
+  {id:'b16',name:'Фриттата',cat:'Завтрак',kcal:300,p:18,f:20,c:10,priceTier:'budget',
+    ing:[['Яйца','3','шт'],['Кабачок','100','г'],['Болгарский перец','80','г'],['Сыр Российский','20','г'],['Масло оливковое','5','мл']],
+    contains:['eggs','dairy'],seasons:['лето','осень'],tags:['vegetarian','high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'b17',name:'Творожная запеканка',cat:'Завтрак',kcal:390,p:24,f:14,c:40,priceTier:'budget',
+    ing:[['Творог 9%','300','г'],['Яйцо','2','шт'],['Манка','30','г'],['Сахар','20','г'],['Сметана 15%','50','г']],
+    contains:['dairy','eggs'],seasons:['всесезон'],tags:['vegetarian','high_protein'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'b18',name:'Гречневая каша',cat:'Завтрак',kcal:320,p:12,f:8,c:52,priceTier:'budget',
+    ing:[['Гречка','60','г'],['Молоко 2.5%','200','мл'],['Масло сливочное 82.5%','5','г'],['Сахар','10','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','stress_friendly'],goals:['maintain','lose','gain'],phases:['luteal']},
+  {id:'b19',name:'Бутерброд с лососем',cat:'Завтрак',kcal:280,p:16,f:14,c:22,priceTier:'premium',
+    ing:[['Хлеб цельнозерновой','2','ломтика'],['Лосось слабосоленый','60','г'],['Сливочный сыр President','30','г'],['Огурец','30','г']],
+    contains:['fish','dairy'],seasons:['всесезон'],tags:['high_protein','quick'],goals:['lose','maintain','gain'],phases:['ovulation','follicular']},
+  {id:'b20',name:'Йогурт с гранолой',cat:'Завтрак',kcal:350,p:14,f:12,c:48,priceTier:'mid',
+    ing:[['Йогурт натуральный','200','г'],['Гранола','50','г'],['Черника','50','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','quick'],goals:['maintain','gain','lose'],phases:['luteal']},
+
+  {id:'l1',name:'Борщ со свининой',cat:'Обед',kcal:360,p:16,f:14,c:42,priceTier:'budget',
+    ing:[['Свинина','180','г'],['Капуста','150','г'],['Картофель','150','г'],['Свёкла','100','г'],['Морковь','80','г'],['Лук','60','г'],['Томатная паста','20','г'],['Сметана 15%','30','г']],
+    contains:['meat','dairy'],seasons:['осень','зима'],tags:['stress_friendly'],goals:['maintain','lose','gain'],phases:['menstrual']},
+  {id:'l2',name:'Куриный суп с лапшой',cat:'Обед',kcal:330,p:22,f:8,c:40,priceTier:'budget',
+    ing:[['Куриное филе','200','г'],['Лапша','60','г'],['Морковь','80','г'],['Лук','60','г'],['Картофель','150','г']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein','stress_friendly'],goals:['lose','maintain','gain'],phases:['menstrual']},
+  {id:'l3',name:'Плов с курицей',cat:'Обед',kcal:520,p:26,f:16,c:66,priceTier:'budget',
+    ing:[['Рис','150','г'],['Куриное филе','200','г'],['Морковь','120','г'],['Лук','80','г'],['Чеснок','3','зубчика'],['Масло растительное','20','мл']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'l4',name:'Гречка с котлетами',cat:'Обед',kcal:480,p:28,f:16,c:58,priceTier:'budget',
+    ing:[['Гречка','150','г'],['Свинина','200','г'],['Лук','60','г'],['Яйцо','1','шт'],['Хлеб белый','40','г']],
+    contains:['meat','eggs'],seasons:['всесезон'],tags:['high_protein'],goals:['maintain','lose','gain'],phases:['menstrual','luteal']},
+  {id:'l5',name:'Паста с курицей',cat:'Обед',kcal:560,p:30,f:18,c:68,priceTier:'mid',
+    ing:[['Макароны','120','г'],['Куриное филе','180','г'],['Сливки','100','мл'],['Сыр Российский','30','г'],['Чеснок','2','зубчика']],
+    contains:['meat','dairy'],seasons:['всесезон'],tags:['high_protein'],goals:['gain','maintain','lose'],phases:['luteal']},
+  {id:'l6',name:'Суп из минтая',cat:'Обед',kcal:300,p:24,f:8,c:30,priceTier:'budget',
+    ing:[['Минтай','200','г'],['Рис','50','г'],['Картофель','100','г'],['Морковь','60','г'],['Лук','50','г']],
+    contains:['fish'],seasons:['всесезон'],tags:['high_protein','stress_friendly'],goals:['lose','maintain','gain'],phases:['menstrual','follicular']},
+  {id:'l7',name:'Томатно-рисовый суп',cat:'Обед',kcal:310,p:10,f:8,c:52,priceTier:'budget',
+    ing:[['Рис','60','г'],['Томатная паста','30','г'],['Лук','60','г'],['Морковь','80','г'],['Масло растительное','10','мл']],
+    contains:[],seasons:['всесезон'],tags:['vegetarian','stress_friendly'],goals:['lose','maintain','gain'],phases:['menstrual','follicular']},
+  {id:'l8',name:'Тыквенно-чечевичный суп',cat:'Обед',kcal:290,p:14,f:8,c:42,priceTier:'budget',
+    ing:[['Чечевица','80','г'],['Тыква','200','г'],['Лук','60','г'],['Морковь','80','г'],['Масло оливковое','10','мл']],
+    contains:[],seasons:['осень','зима'],tags:['vegetarian','high_protein'],goals:['lose','maintain','gain'],phases:['menstrual','follicular']},
+  {id:'l9',name:'Овощной крем-суп',cat:'Обед',kcal:240,p:6,f:10,c:32,priceTier:'budget',
+    ing:[['Морковь','150','г'],['Лук','80','г'],['Помидоры','200','г'],['Сливки','50','мл'],['Масло оливковое','10','мл']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian'],goals:['lose','maintain','gain'],phases:['menstrual','follicular']},
+  {id:'l10',name:'Суп с фрикадельками',cat:'Обед',kcal:380,p:22,f:14,c:40,priceTier:'budget',
+    ing:[['Фарш','200','г'],['Картофель','150','г'],['Морковь','80','г'],['Лук','60','г'],['Лапша','40','г']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein','stress_friendly'],goals:['maintain','lose','gain'],phases:['menstrual']},
+  {id:'l11',name:'Гороховый суп',cat:'Обед',kcal:420,p:20,f:16,c:48,priceTier:'budget',
+    ing:[['Горох','100','г'],['Копчёная грудка','100','г'],['Картофель','150','г'],['Морковь','80','г'],['Лук','60','г']],
+    contains:['meat'],seasons:['осень','зима'],tags:['high_protein'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'l12',name:'Курица терияки',cat:'Обед',kcal:490,p:32,f:14,c:58,priceTier:'mid',
+    ing:[['Куриное филе','200','г'],['Рис','80','г'],['Соус терияки','40','мл'],['Кунжут','5','г']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['maintain','gain','lose'],phases:['follicular','ovulation']},
+  {id:'l13',name:'Том-ям',cat:'Обед',kcal:320,p:24,f:12,c:30,priceTier:'premium',
+    ing:[['Креветки','150','г'],['Кокосовое молоко','150','мл'],['Грибы','100','г'],['Лемонграсс','10','г'],['Лайм','0.5','шт']],
+    contains:['fish'],seasons:['всесезон'],tags:['high_protein','stress_friendly'],goals:['lose','maintain','gain'],phases:['follicular','ovulation']},
+  {id:'l14',name:'Пельмени с бульоном',cat:'Обед',kcal:520,p:22,f:22,c:56,priceTier:'budget',
+    ing:[['Пельмени','250','г'],['Бульон','300','мл'],['Сметана 15%','30','г'],['Петрушка','10','г']],
+    contains:['meat','dairy'],seasons:['всесезон'],tags:['high_protein'],goals:['gain','maintain','lose'],phases:['luteal']},
+  {id:'l15',name:'Плов с говядиной',cat:'Обед',kcal:580,p:28,f:20,c:70,priceTier:'premium',
+    ing:[['Рис','150','г'],['Говядина','200','г'],['Морковь','120','г'],['Лук','80','г'],['Чеснок','3','зубчика']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['gain','maintain','lose'],phases:['luteal']},
+  {id:'l16',name:'Спагетти с курицей',cat:'Обед',kcal:510,p:32,f:14,c:62,priceTier:'mid',
+    ing:[['Спагетти','120','г'],['Куриная грудка','180','г'],['Помидоры','200','г'],['Чеснок','2','зубчика'],['Масло оливковое','10','мл']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'l17',name:'Салат «Нежность»',cat:'Обед',kcal:380,p:24,f:22,c:20,priceTier:'mid',
+    ing:[['Куриное филе','150','г'],['Картофель','100','г'],['Огурец','80','г'],['Яйцо','1','шт'],['Сметана 15%','40','г'],['Чернослив','20','г']],
+    contains:['meat','eggs','dairy'],seasons:['всесезон'],tags:['high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'l18',name:'Салат «Миледи»',cat:'Обед',kcal:340,p:28,f:18,c:16,priceTier:'mid',
+    ing:[['Индейка','150','г'],['Яйцо','1','шт'],['Сельдерей','80','г'],['Огурец','80','г'],['Сметана 15%','30','г'],['Майонез','20','г']],
+    contains:['meat','eggs','dairy'],seasons:['всесезон'],tags:['high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'l19',name:'Рагу с тыквой',cat:'Обед',kcal:360,p:16,f:14,c:44,priceTier:'budget',
+    ing:[['Свинина','150','г'],['Тыква','200','г'],['Грибы','150','г'],['Картофель','150','г'],['Лук','60','г']],
+    contains:['meat'],seasons:['осень'],tags:['stress_friendly'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'l20',name:'Гречка с говядиной',cat:'Обед',kcal:460,p:30,f:14,c:52,priceTier:'premium',
+    ing:[['Гречка','120','г'],['Говядина','180','г'],['Лук','60','г'],['Морковь','80','г'],['Томатная паста','20','г']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['maintain','gain','lose'],phases:['menstrual']},
+
+  {id:'d1',name:'Запечённая курица с овощами',cat:'Ужин',kcal:420,p:35,f:18,c:30,priceTier:'budget',
+    ing:[['Куриные бёдра','250','г'],['Картофель','200','г'],['Морковь','80','г'],['Лук','60','г'],['Паприка','5','г']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['maintain','lose','gain'],phases:['follicular']},
+  {id:'d2',name:'Салат «Цезарь» с курицей',cat:'Ужин',kcal:380,p:28,f:22,c:15,priceTier:'mid',
+    ing:[['Куриное филе','180','г'],['Салат романо','1','пучок'],['Черри','100','г'],['Пармезан','30','г'],['Соус цезарь','30','г'],['Сухарики','30','г']],
+    contains:['meat','dairy'],seasons:['всесезон'],tags:['high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'d3',name:'Минтай на пару',cat:'Ужин',kcal:400,p:30,f:10,c:45,priceTier:'budget',
+    ing:[['Минтай','220','г'],['Рис','80','г'],['Лимон','0.3','шт'],['Смесь перцев','3','г']],
+    contains:['fish'],seasons:['всесезон'],tags:['high_protein','stress_friendly'],goals:['lose','maintain','gain'],phases:['menstrual','follicular']},
+  {id:'d4',name:'Тушёная индейка',cat:'Ужин',kcal:430,p:34,f:10,c:48,priceTier:'mid',
+    ing:[['Индейка','200','г'],['Гречка','80','г'],['Лук','60','г'],['Морковь','80','г'],['Масло растительное','10','мл']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein','stress_friendly'],goals:['lose','maintain','gain'],phases:['follicular','luteal']},
+  {id:'d5',name:'Лосось с брокколи',cat:'Ужин',kcal:460,p:35,f:26,c:18,priceTier:'premium',
+    ing:[['Лосось','180','г'],['Брокколи','200','г'],['Лимон','0.3','шт'],['Масло оливковое','10','мл']],
+    contains:['fish'],seasons:['всесезон'],tags:['high_protein','stress_friendly'],goals:['maintain','lose','gain'],phases:['menstrual','follicular']},
+  {id:'d6',name:'Рагу с тофу',cat:'Ужин',kcal:320,p:20,f:14,c:30,priceTier:'mid',
+    ing:[['Тофу','200','г'],['Кабачок','150','г'],['Болгарский перец','100','г'],['Помидоры','150','г'],['Лук','60','г']],
+    contains:[],seasons:['лето','осень'],tags:['vegetarian','high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'d7',name:'Куриные котлеты',cat:'Ужин',kcal:370,p:32,f:14,c:26,priceTier:'budget',
+    ing:[['Куриный фарш','200','г'],['Кабачок','150','г'],['Морковь','100','г'],['Яйцо','1','шт']],
+    contains:['meat','eggs'],seasons:['всесезон'],tags:['high_protein','stress_friendly'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'d8',name:'Стейк из говядины',cat:'Ужин',kcal:520,p:42,f:30,c:22,priceTier:'premium',
+    ing:[['Говядина','200','г'],['Перец гриль','100','г'],['Баклажан гриль','100','г'],['Масло сливочное 82.5%','10','г']],
+    contains:['meat','dairy'],seasons:['всесезон'],tags:['high_protein'],goals:['gain','maintain','lose'],phases:['menstrual']},
+  {id:'d9',name:'Минтай в сливках',cat:'Ужин',kcal:380,p:32,f:18,c:20,priceTier:'budget',
+    ing:[['Минтай','220','г'],['Сливки','100','мл'],['Лук','60','г'],['Масло сливочное 82.5%','10','г']],
+    contains:['fish','dairy'],seasons:['всесезон'],tags:['high_protein'],goals:['lose','maintain','gain'],phases:['menstrual','follicular']},
+  {id:'d10',name:'Запечённые голени',cat:'Ужин',kcal:450,p:34,f:24,c:28,priceTier:'budget',
+    ing:[['Куриные голени','250','г'],['Картофель','200','г'],['Цветная капуста','150','г'],['Паприка','5','г']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['maintain','gain','lose'],phases:['follicular']},
+  {id:'d11',name:'Грудка в сливках',cat:'Ужин',kcal:410,p:38,f:20,c:14,priceTier:'budget',
+    ing:[['Куриная грудка','200','г'],['Сливки','100','мл'],['Чеснок','2','зубчика'],['Укроп','10','г']],
+    contains:['meat','dairy'],seasons:['всесезон'],tags:['high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'d12',name:'Рыбные биточки',cat:'Ужин',kcal:350,p:28,f:14,c:26,priceTier:'budget',
+    ing:[['Треска','200','г'],['Морковь','150','г'],['Яйцо','1','шт'],['Лук','60','г']],
+    contains:['fish','eggs'],seasons:['всесезон'],tags:['high_protein'],goals:['lose','maintain','gain'],phases:['menstrual']},
+  {id:'d13',name:'Запечённый кролик',cat:'Ужин',kcal:480,p:40,f:22,c:24,priceTier:'premium',
+    ing:[['Кролик','250','г'],['Помидоры','200','г'],['Чеснок','3','зубчика'],['Масло оливковое','10','мл']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['maintain','gain','lose'],phases:['menstrual']},
+  {id:'d14',name:'Пряная курица с рисом',cat:'Ужин',kcal:500,p:34,f:18,c:52,priceTier:'budget',
+    ing:[['Курица','200','г'],['Рис','100','г'],['Прованские травы','10','г'],['Масло растительное','10','мл']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'d15',name:'Салат из кролика',cat:'Ужин',kcal:360,p:30,f:18,c:18,priceTier:'premium',
+    ing:[['Кролик','180','г'],['Паттисоны','150','г'],['Огурец','80','г'],['Сметана 15%','30','г']],
+    contains:['meat','dairy'],seasons:['лето','осень'],tags:['high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'d16',name:'Курица с яблоками',cat:'Ужин',kcal:470,p:36,f:22,c:32,priceTier:'budget',
+    ing:[['Курица','250','г'],['Яблоко','150','г'],['Лук','60','г'],['Паприка','5','г']],
+    contains:['meat'],seasons:['осень'],tags:['high_protein'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'d17',name:'Индейка с авокадо',cat:'Ужин',kcal:390,p:32,f:22,c:18,priceTier:'mid',
+    ing:[['Индейка','180','г'],['Авокадо','0.5','шт'],['Хурма','1','шт'],['Петрушка','10','г']],
+    contains:['meat'],seasons:['осень','зима'],tags:['high_protein'],goals:['lose','maintain','gain'],phases:['follicular','ovulation']},
+  {id:'d18',name:'Курица по-сычуаньски',cat:'Ужин',kcal:440,p:34,f:20,c:30,priceTier:'mid',
+    ing:[['Курица','200','г'],['Перец чили','10','г'],['Соевый соус','30','мл'],['Чеснок','3','зубчика'],['Масло растительное','15','мл']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['maintain','lose','gain'],phases:['follicular']},
+  {id:'d19',name:'Капуста с курицей',cat:'Ужин',kcal:330,p:30,f:16,c:16,priceTier:'budget',
+    ing:[['Куриное филе','180','г'],['Пекинская капуста','200','г'],['Морковь','80','г'],['Соевый соус','20','мл']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'d20',name:'Фаршированная грудка',cat:'Ужин',kcal:460,p:42,f:20,c:24,priceTier:'budget',
+    ing:[['Куриная грудка','200','г'],['Сыр Российский','30','г'],['Шпинат','80','г'],['Чеснок','2','зубчика']],
+    contains:['meat','dairy'],seasons:['всесезон'],tags:['high_protein'],goals:['lose','maintain','gain'],phases:['follicular','ovulation']},
+
+  {id:'s1',name:'Яблоко',cat:'Перекус',kcal:80,p:0,f:0,c:20,priceTier:'budget',
+    ing:[['Яблоко','1','шт']],contains:[],seasons:['осень','зима'],
+    tags:['vegetarian','quick'],goals:['lose','maintain','gain'],phases:['luteal']},
+  {id:'s2',name:'Горсть миндаля',cat:'Перекус',kcal:200,p:5,f:18,c:6,priceTier:'mid',
+    ing:[['Миндаль','30','г']],contains:[],seasons:['всесезон'],
+    tags:['vegetarian','quick'],goals:['lose','maintain','gain'],phases:['ovulation','luteal']},
+  {id:'s3',name:'Натуральный йогурт',cat:'Перекус',kcal:100,p:8,f:3,c:10,priceTier:'budget',
+    ing:[['Йогурт натуральный','150','г']],contains:['dairy'],seasons:['всесезон'],
+    tags:['vegetarian','quick','high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'s4',name:'Банан',cat:'Перекус',kcal:100,p:1,f:0,c:26,priceTier:'budget',
+    ing:[['Банан','1','шт']],contains:[],seasons:['всесезон'],
+    tags:['vegetarian','quick'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'s5',name:'Творог с укропом',cat:'Перекус',kcal:130,p:14,f:5,c:6,priceTier:'budget',
+    ing:[['Творог 5%','100','г'],['Укроп','10','г']],contains:['dairy'],seasons:['всесезон'],
+    tags:['vegetarian','quick','high_protein'],goals:['lose','maintain','gain'],phases:['luteal','follicular']},
+  {id:'s6',name:'Протеиновый батончик',cat:'Перекус',kcal:180,p:15,f:6,c:18,priceTier:'mid',
+    ing:[['Протеиновый батончик','1','шт']],contains:['dairy'],seasons:['всесезон'],
+    tags:['vegetarian','quick','high_protein'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'s7',name:'Хлебцы с творогом',cat:'Перекус',kcal:150,p:12,f:6,c:14,priceTier:'budget',
+    ing:[['Хлебцы','2','шт'],['Творог 5%','80','г'],['Огурец','50','г'],['Петрушка','10','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','quick','high_protein'],goals:['lose','maintain','gain'],phases:['follicular','luteal']},
+  {id:'s8',name:'Творог в лаваше',cat:'Перекус',kcal:220,p:16,f:8,c:22,priceTier:'budget',
+    ing:[['Лаваш','1','лист'],['Творог 5%','100','г'],['Йогурт натуральный','30','г'],['Укроп','10','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','quick','high_protein'],goals:['maintain','lose','gain'],phases:['follicular']},
+  {id:'s9',name:'Канапе с творогом',cat:'Перекус',kcal:120,p:10,f:5,c:8,priceTier:'budget',
+    ing:[['Творог 5%','80','г'],['Огурец','60','г'],['Хлебцы','2','шт'],['Чеснок','1','зубчик']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','quick','high_protein'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'s10',name:'Творог с орехами',cat:'Перекус',kcal:240,p:18,f:14,c:10,priceTier:'mid',
+    ing:[['Творог 5%','150','г'],['Грецкие орехи','20','г'],['Мёд','10','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','quick','high_protein'],goals:['maintain','gain','lose'],phases:['luteal','ovulation']},
+  {id:'s11',name:'Конвертики с форелью',cat:'Перекус',kcal:190,p:14,f:10,c:12,priceTier:'premium',
+    ing:[['Лаваш','1','лист'],['Форель слабосоленая','60','г'],['Сливочный сыр President','30','г'],['Огурец','50','г']],
+    contains:['fish','dairy'],seasons:['всесезон'],tags:['high_protein','quick'],goals:['lose','maintain','gain'],phases:['ovulation','follicular']},
+  {id:'s12',name:'Тортилья с грудкой',cat:'Перекус',kcal:260,p:18,f:12,c:20,priceTier:'budget',
+    ing:[['Тортилья','1','шт'],['Копчёная грудка','60','г'],['Сыр Российский','20','г'],['Огурец','50','г']],
+    contains:['meat','dairy'],seasons:['всесезон'],tags:['high_protein','quick'],goals:['maintain','lose','gain'],phases:['follicular']},
+  {id:'s13',name:'Треугольник с карбонадом',cat:'Перекус',kcal:280,p:16,f:16,c:22,priceTier:'mid',
+    ing:[['Лаваш','1','лист'],['Карбонад','60','г'],['Помидор','50','г'],['Сыр Российский','20','г']],
+    contains:['meat','dairy'],seasons:['всесезон'],tags:['high_protein','quick'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'s14',name:'Сырная лепёшка',cat:'Перекус',kcal:290,p:14,f:16,c:26,priceTier:'mid',
+    ing:[['Мука','50','г'],['Сыр Российский','40','г'],['Петрушка','10','г'],['Масло растительное','5','мл']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','quick'],goals:['maintain','gain','lose'],phases:['luteal']},
+  {id:'s15',name:'Овощная кесадилья',cat:'Перекус',kcal:210,p:10,f:10,c:22,priceTier:'budget',
+    ing:[['Тортилья','1','шт'],['Болгарский перец','50','г'],['Кукуруза','30','г'],['Сыр Российский','20','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','quick'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'s16',name:'Фасоль в лаваше',cat:'Перекус',kcal:230,p:12,f:6,c:36,priceTier:'budget',
+    ing:[['Лаваш','1','лист'],['Фасоль','100','г'],['Морковь','50','г'],['Кинза','10','г']],
+    contains:[],seasons:['всесезон'],tags:['vegetarian','quick'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'s17',name:'Ролл «С собой»',cat:'Перекус',kcal:250,p:14,f:10,c:28,priceTier:'budget',
+    ing:[['Лаваш','1','лист'],['Курица','60','г'],['Огурец','50','г'],['Соус цезарь','20','г']],
+    contains:['meat'],seasons:['всесезон'],tags:['high_protein','quick'],goals:['lose','maintain','gain'],phases:['follicular']},
+  {id:'s18',name:'Сладкий творожный десерт',cat:'Перекус',kcal:320,p:8,f:14,c:42,priceTier:'mid',
+    ing:[['Творог 5%','100','г'],['Печенье','30','г'],['Банан','1','шт'],['Мёд','10','г']],
+    contains:['dairy'],seasons:['всесезон'],tags:['vegetarian','quick'],goals:['gain','maintain','lose'],phases:['luteal']},
+  {id:'s19',name:'Шарики из трески',cat:'Перекус',kcal:170,p:18,f:6,c:10,priceTier:'budget',
+    ing:[['Треска','150','г'],['Яйцо','1','шт'],['Лук','30','г'],['Сухарики','20','г']],
+    contains:['fish','eggs'],seasons:['всесезон'],tags:['high_protein','quick'],goals:['lose','maintain','gain'],phases:['menstrual','follicular']},
+  {id:'s20',name:'Помидоры с моцареллой',cat:'Перекус',kcal:180,p:10,f:12,c:8,priceTier:'mid',
+    ing:[['Помидоры','150','г'],['Моцарелла','60','г'],['Масло оливковое','10','мл'],['Базилик свежий','5','г']],
+    contains:['dairy'],seasons:['лето','осень'],tags:['vegetarian','quick'],goals:['lose','maintain','gain'],phases:['ovulation']},
+
+  {id:'sw1',name:'Шоколад Alpen Gold (30 г)',cat:'Перекус',kcal:160,p:2,f:9,c:17,priceTier:'budget',
+    ing:[['Шоколад Alpen Gold','30','г']],contains:['dairy'],seasons:['всесезон'],
+    tags:['vegetarian','quick','sweet'],goals:['lose','maintain','gain'],phases:['luteal']},
+  {id:'sw2',name:'Шоколад «Победа» (30 г)',cat:'Перекус',kcal:165,p:2,f:10,c:17,priceTier:'budget',
+    ing:[['Шоколад «Победа»','30','г']],contains:['dairy'],seasons:['всесезон'],
+    tags:['vegetarian','quick','sweet'],goals:['lose','maintain','gain'],phases:['luteal']},
+  {id:'sw3',name:'Печенье Oreo (30 г)',cat:'Перекус',kcal:145,p:1,f:7,c:20,priceTier:'mid',
+    ing:[['Печенье Oreo','30','г']],contains:['dairy'],seasons:['всесезон'],
+    tags:['vegetarian','quick','sweet'],goals:['lose','maintain','gain'],phases:['luteal']},
+  {id:'sw4',name:'Печенье «Юбилейное» (30 г)',cat:'Перекус',kcal:130,p:2,f:5,c:19,priceTier:'budget',
+    ing:[['Печенье «Юбилейное»','30','г']],contains:['dairy'],seasons:['всесезон'],
+    tags:['vegetarian','quick','sweet'],goals:['lose','maintain','gain'],phases:['luteal']},
+  {id:'sw5',name:'Медвежонок Барни',cat:'Перекус',kcal:180,p:3,f:7,c:26,priceTier:'budget',
+    ing:[['Медвежонок Барни','1','шт']],contains:['dairy'],seasons:['всесезон'],
+    tags:['vegetarian','quick','sweet'],goals:['lose','maintain','gain'],phases:['luteal']},
+  {id:'sw6',name:'Choco Pie',cat:'Перекус',kcal:170,p:2,f:6,c:27,priceTier:'budget',
+    ing:[['Choco Pie','1','шт']],contains:['dairy'],seasons:['всесезон'],
+    tags:['vegetarian','quick','sweet'],goals:['lose','maintain','gain'],phases:['luteal']},
+  {id:'sw7',name:'Марципан (30 г)',cat:'Перекус',kcal:150,p:2,f:8,c:18,priceTier:'mid',
+    ing:[['Марципан','30','г']],contains:[],seasons:['всесезон'],
+    tags:['vegetarian','quick','sweet'],goals:['lose','maintain','gain'],phases:['luteal']}
+];
+
+/* =========================================================
+   РЕЦЕПТЫ
+   ========================================================= */
+var RECIPES = {};
+function _rec(id,t,fz,tip,steps){RECIPES[id]={time:t,freezable:fz,freezeTip:tip||'',steps:steps};}
+_rec('b1','15 мин',true,'Каша переносит заморозку.',['Вскипятите молоко.','Добавьте хлопья, варите 5–7 мин.','Добавьте курагу, изюм и мёд.']);
+_rec('b2','10 мин',false,'',['Нарежьте овощи.','Обжарьте 2–3 мин.','Залейте яйцами.']);
+_rec('b3','20 мин',true,'Можно заморозить до жарки.',['Протрите творог.','Смешайте с яйцом, мукой, сахаром.','Обжарьте по 3 мин.']);
+_rec('b4','3 мин',false,'',['Выложите йогурт.','Добавьте орехи и мёд.']);
+_rec('b5','10 мин',false,'',['Подсушите хлеб.','Разомните авокадо.','Сварите яйцо-пашот.']);
+_rec('b6','5 мин',false,'',['Разомните творог с мёдом.','Нарежьте банан.']);
+_rec('b7','20 мин',true,'Блины замораживаются.',['Смешайте муку, молоко, яйца.','Жарьте тонкие блины.']);
+_rec('b8','5 мин',true,'Хранится 2 дня.',['Смешайте всё.','Оставьте на ночь.']);
+_rec('b9','20 мин',false,'',['Обжарьте лук и перец.','Добавьте томаты.','Вбейте яйца.']);
+_rec('b10','15 мин',true,'',['Смешайте хлопья, яйцо.','Обжарьте.','Намажьте сыром.']);
+_rec('b11','5 мин',false,'',['Смешайте чиа и молоко.','Оставьте на 2 часа.']);
+_rec('b12','10 мин',false,'',['Обжарьте помидоры.','Вбейте яйца.','Посыпьте сыром.']);
+_rec('b13','20 мин',true,'',['Смешайте муку, молоко, яйцо.','Жарьте панкейки.']);
+_rec('b14','30 мин',false,'',['Отварите рис с тыквой.','Добавьте молоко.']);
+_rec('b15','25 мин',false,'',['Сварите крупу.','Добавьте молоко и сыр.']);
+_rec('b16','20 мин',true,'Замораживается.',['Обжарьте овощи.','Залейте яйцами.','Запекайте.']);
+_rec('b17','40 мин',true,'',['Смешайте всё.','Запекайте 30 мин.']);
+_rec('b18','25 мин',false,'',['Сварите гречку.','Добавьте молоко.']);
+_rec('b19','5 мин',false,'',['Подсушите хлеб.','Намажьте сыром.','Выложите лосось.']);
+_rec('b20','3 мин',false,'',['Выложите йогурт.','Добавьте гранолу.']);
+_rec('l1','60 мин',true,'Вкуснее на 2-й день.',['Сварите бульон.','Обжарьте овощи.','Добавьте капусту.']);
+_rec('l2','45 мин',true,'Замораживайте без лапши.',['Сварите курицу.','Добавьте овощи.','Добавьте лапшу.']);
+_rec('l3','50 мин',true,'',['Обжарьте курицу.','Добавьте рис.','Тушите 20 мин.']);
+_rec('l4','40 мин',true,'',['Смешайте фарш.','Сформируйте котлеты.','Обжарьте.']);
+_rec('l5','25 мин',false,'',['Отварите макароны.','Обжарьте курицу.','Добавьте сливки.']);
+_rec('l6','40 мин',true,'',['Сварите бульон.','Добавьте рис и рыбу.']);
+_rec('l7','30 мин',true,'',['Обжарьте лук.','Добавьте томат и рис.']);
+_rec('l8','35 мин',true,'',['Обжарьте лук.','Добавьте тыкву и чечевицу.']);
+_rec('l9','30 мин',true,'',['Отварите овощи.','Пробейте блендером.']);
+_rec('l10','35 мин',true,'',['Сформируйте фрикадельки.','Варите с овощами.']);
+_rec('l11','50 мин',true,'',['Замочите горох.','Варите с грудкой.']);
+_rec('l12','30 мин',false,'',['Обжарьте курицу.','Добавьте соус.','Отварите рис.']);
+_rec('l13','25 мин',false,'',['Сварите бульон.','Добавьте кокосовое молоко и креветки.']);
+_rec('l14','20 мин',false,'',['Сварите пельмени.','Подавайте с бульоном.']);
+_rec('l15','60 мин',true,'',['Обжарьте говядину.','Добавьте рис.','Тушите 30 мин.']);
+_rec('l16','25 мин',false,'',['Отварите спагетти.','Обжарьте курицу.']);
+_rec('l17','30 мин',false,'',['Отварите картофель и яйцо.','Соберите слоями.']);
+_rec('l18','20 мин',false,'',['Нарежьте индейку и овощи.','Смешайте.']);
+_rec('l19','45 мин',true,'',['Обжарьте свинину.','Добавьте тыкву и грибы.']);
+_rec('l20','50 мин',true,'',['Обжарьте говядину.','Добавьте гречку.']);
+_rec('d1','50 мин',true,'Идеально для заморозки.',['Натрите курицу.','Запекайте 40 мин.']);
+_rec('d2','20 мин',false,'',['Обжарьте курицу.','Смешайте с салатом.']);
+_rec('d3','25 мин',true,'',['Посолите рыбу.','Готовьте на пару.']);
+_rec('d4','40 мин',true,'',['Обжарьте индейку.','Тушите 20 мин.']);
+_rec('d5','25 мин',false,'',['Посолите лосось.','Запекайте 15 мин.']);
+_rec('d6','30 мин',true,'',['Обжарьте тофу.','Добавьте овощи.']);
+_rec('d7','30 мин',true,'',['Смешайте фарш.','Готовьте на пару.']);
+_rec('d8','20 мин',false,'',['Обжарьте стейк.','Дайте отдохнуть.']);
+_rec('d9','30 мин',true,'',['Обжарьте лук.','Запеките рыбу.']);
+_rec('d10','50 мин',true,'',['Натрите голени.','Запекайте 40 мин.']);
+_rec('d11','25 мин',false,'',['Обжарьте грудку.','Добавьте сливки.']);
+_rec('d12','30 мин',true,'',['Смешайте фарш.','Обжарьте биточки.']);
+_rec('d13','50 мин',true,'',['Замаринуйте кролика.','Запекайте 40 мин.']);
+_rec('d14','40 мин',false,'',['Обжарьте курицу.','Добавьте рис.']);
+_rec('d15','30 мин',false,'',['Отварите кролика.','Смешайте с овощами.']);
+_rec('d16','50 мин',true,'',['Нафаршируйте курицу.','Запекайте 45 мин.']);
+_rec('d17','20 мин',false,'',['Обжарьте индейку.','Нарежьте авокадо.']);
+_rec('d18','30 мин',false,'',['Обжарьте курицу с чили.','Тушите 15 мин.']);
+_rec('d19','25 мин',false,'',['Обжарьте курицу.','Добавьте капусту.']);
+_rec('d20','40 мин',true,'',['Нафаршируйте грудку.','Запекайте 30 мин.']);
+_rec('s1','0 мин',false,'',['Помойте и съешьте.']);
+_rec('s2','0 мин',false,'',['Отмерьте горсть.']);
+_rec('s3','0 мин',false,'',['Откройте баночку.']);
+_rec('s4','0 мин',false,'',['Очистите банан.']);
+_rec('s5','3 мин',false,'',['Разомните творог с укропом.']);
+_rec('s6','0 мин',false,'',['Съешьте батончик.']);
+_rec('s7','5 мин',false,'',['Смешайте творог.','Намажьте на хлебцы.']);
+_rec('s8','5 мин',false,'',['Смешайте творог и йогурт.','Заверните в лаваш.']);
+_rec('s9','5 мин',false,'',['Смешайте творог с чесноком.','Соберите канапе.']);
+_rec('s10','5 мин',false,'',['Смешайте творог с орехами.']);
+_rec('s11','5 мин',false,'',['Намажьте лаваш.','Выложите форель.']);
+_rec('s12','5 мин',false,'',['Выложите начинку.','Сверните.']);
+_rec('s13','5 мин',false,'',['Сложите треугольником.']);
+_rec('s14','15 мин',false,'',['Замесите тесто.','Обжарьте лепёшку.']);
+_rec('s15','10 мин',false,'',['Обжарьте до расплавления сыра.']);
+_rec('s16','5 мин',false,'',['Заверните в лаваш.']);
+_rec('s17','5 мин',false,'',['Сверните ролл.']);
+_rec('s18','5 мин',false,'',['Смешайте всё.']);
+_rec('s19','20 мин',true,'Замораживаются.',['Смешайте треску.','Обжарьте шарики.']);
+_rec('s20','5 мин',false,'',['Нарежьте и смешайте.']);
+_rec('sw1','0 мин',false,'',['Отломите плитку.']);
+_rec('sw2','0 мин',false,'',['Отломите плитку.']);
+_rec('sw3','0 мин',false,'',['Достаньте печенье.']);
+_rec('sw4','0 мин',false,'',['Достаньте печенье.']);
+_rec('sw5','0 мин',false,'',['Разверните батончик.']);
+_rec('sw6','0 мин',false,'',['Разверните пирожное.']);
+_rec('sw7','0 мин',false,'',['Отрежьте кусочек.']);
+
+/* =========================================================
+   ЦЕНЫ
+   ========================================================= */
+var PRICES = {
+  'Хлеб':{svetofor:{price:25.99,packContent:580,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'буханка 580 г'},spar:{price:35.99,packContent:580,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 580 г'},viktoria:{price:34.99,packContent:580,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 580 г'},pyat:{price:34.99,packContent:580,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 580 г'}},
+  'Хлеб цельнозерновой':{svetofor:{price:35.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'буханка 500 г'},spar:{price:45.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 500 г'},viktoria:{price:49.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 500 г'},pyat:{price:42.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 500 г'}},
+  'Хлеб Бородинский':{svetofor:{price:39.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'буханка 400 г'},spar:{price:49.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 400 г'},viktoria:{price:54.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 400 г'},pyat:{price:44.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 400 г'}},
+  'Хлеб белый':{svetofor:{price:25.99,packContent:580,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'буханка 580 г'},spar:{price:35.99,packContent:580,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 580 г'},viktoria:{price:34.99,packContent:580,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 580 г'},pyat:{price:34.99,packContent:580,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'буханка 580 г'}},
+  'Молоко 2.5%':{svetofor:{price:49.99,packContent:800,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пакет 800 мл'},spar:{price:58.99,packContent:800,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пакет 800 мл'},viktoria:{price:53.19,packContent:800,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пакет 800 мл'},pyat:{price:53.19,packContent:800,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пакет 800 мл'}},
+  'Молоко 3.2%':{svetofor:{price:59.99,packContent:800,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пакет 800 мл'},spar:{price:69.99,packContent:800,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пакет 800 мл'},viktoria:{price:65.99,packContent:800,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пакет 800 мл'},pyat:{price:64.99,packContent:800,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пакет 800 мл'}},
+  'Греческий йогурт':{svetofor:{price:65.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'баночка 300 г'},spar:{price:89.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 300 г'},viktoria:{price:92.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 300 г'},pyat:{price:85.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 300 г'}},
+  'Йогурт натуральный':{svetofor:{price:65.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'баночка 300 г'},spar:{price:89.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 300 г'},viktoria:{price:92.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 300 г'},pyat:{price:85.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 300 г'}},
+  'Сметана 15%':{svetofor:{price:69.99,packContent:315,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'баночка 315 г'},spar:{price:89.99,packContent:315,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 315 г'},viktoria:{price:89.90,packContent:315,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 315 г'},pyat:{price:89.99,packContent:315,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 315 г'}},
+  'Творог 5%':{svetofor:{price:79.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 200 г'},spar:{price:129.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},viktoria:{price:129.90,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},pyat:{price:79.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'}},
+  'Творог 9%':{svetofor:{price:89.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 200 г'},spar:{price:139.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},viktoria:{price:139.90,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},pyat:{price:89.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'}},
+  'Сыр Российский':{svetofor:{price:149.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 200 г'},spar:{price:189.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 г'},viktoria:{price:199.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 г'},pyat:{price:179.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 г'}},
+  'Сыр Гауда':{svetofor:{price:169.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 200 г'},spar:{price:209.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 г'},viktoria:{price:219.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 г'},pyat:{price:199.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 г'}},
+  'Пармезан':{svetofor:{price:219.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 150 г'},spar:{price:259.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'упаковка 150 г'},viktoria:{price:289.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'упаковка 150 г'},pyat:{price:269.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'упаковка 150 г'}},
+  'Моцарелла':{svetofor:{price:159.99,packContent:125,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 125 г'},spar:{price:199.99,packContent:125,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 125 г'},viktoria:{price:219.99,packContent:125,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 125 г'},pyat:{price:189.99,packContent:125,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 125 г'}},
+  'Сливочный сыр President':{svetofor:{price:139.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'баночка 150 г'},spar:{price:169.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'баночка 150 г'},viktoria:{price:179.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'баночка 150 г'},pyat:{price:159.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'баночка 150 г'}},
+  'Творожный сыр Almette':{svetofor:{price:129.99,packContent:180,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'баночка 180 г'},spar:{price:159.99,packContent:180,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 180 г'},viktoria:{price:169.99,packContent:180,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 180 г'},pyat:{price:149.99,packContent:180,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'баночка 180 г'}},
+  'Сливки':{svetofor:{price:79.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 200 мл'},spar:{price:99.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 мл'},viktoria:{price:109.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 мл'},pyat:{price:95.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 мл'}},
+  'Масло сливочное 82.5%':{svetofor:{price:129.99,packContent:180,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 180 г'},spar:{price:179.99,packContent:180,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 180 г'},viktoria:{price:179.99,packContent:180,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 180 г'},pyat:{price:122.99,packContent:180,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 180 г'}},
+  'Яйца':{svetofor:{price:89.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'десяток С1'},spar:{price:134.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'десяток С1'},viktoria:{price:129.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'десяток С1'},pyat:{price:139.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'десяток С1'}},
+  'Яйцо':{svetofor:{price:89.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'десяток С1'},spar:{price:134.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'десяток С1'},viktoria:{price:129.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'десяток С1'},pyat:{price:139.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'десяток С1'}},
+  'Куриное филе':{svetofor:{price:249.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:449.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:569.00,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:519.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Куриная грудка':{svetofor:{price:249.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:449.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:569.00,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:519.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Куриное филе блок 2 кг':{svetofor:{price:890.00,packContent:2000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'блок 2 кг (445 ₽/кг)'},spar:{price:1400.00,packContent:2000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'блок 2 кг (700 ₽/кг)'},viktoria:{price:1350.00,packContent:2000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'блок 2 кг (675 ₽/кг)'},pyat:{price:1380.00,packContent:2000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'блок 2 кг (690 ₽/кг)'}},
+  'Куриные бёдра':{svetofor:{price:179.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:289.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:319.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:299.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Куриные голени':{svetofor:{price:149.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:259.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:279.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:269.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Курица':{svetofor:{price:149.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'тушка 1 кг'},spar:{price:209.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'тушка за кг'},viktoria:{price:239.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'тушка за кг'},pyat:{price:199.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'тушка за кг'}},
+  'Куриный фарш':{svetofor:{price:229.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:329.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:359.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:349.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Фарш':{svetofor:{price:279.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:399.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:429.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:419.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Свинина':{svetofor:{price:299.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'вакуумная упаковка 1 кг'},spar:{price:399.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:429.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:419.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Говядина':{svetofor:{price:649.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:799.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'},viktoria:{price:849.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'},pyat:{price:819.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'}},
+  'Индейка':{svetofor:{price:399.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:499.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:529.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:519.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Кролик':{svetofor:{price:599.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'тушка 1 кг'},spar:{price:749.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'},viktoria:{price:799.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'},pyat:{price:779.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'}},
+  'Карбонад':{svetofor:{price:349.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:449.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:479.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:429.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Копчёная грудка':{svetofor:{price:349.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:449.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:479.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:429.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Минтай':{svetofor:{price:199.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:259.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:289.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:279.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Треска':{svetofor:{price:279.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:349.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},viktoria:{price:379.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'},pyat:{price:329.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'standard',label:'за кг'}},
+  'Лосось':{svetofor:{price:749.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:899.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'},viktoria:{price:949.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'},pyat:{price:919.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'}},
+  'Лосось слабосоленый':{svetofor:{price:349.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 150 г'},spar:{price:449.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'упаковка 150 г'},viktoria:{price:479.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'упаковка 150 г'},pyat:{price:429.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'упаковка 150 г'}},
+  'Форель слабосоленая':{svetofor:{price:329.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 150 г'},spar:{price:399.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'упаковка 150 г'},viktoria:{price:429.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'упаковка 150 г'},pyat:{price:379.99,packContent:150,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'упаковка 150 г'}},
+  'Креветки':{svetofor:{price:449.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 1 кг'},spar:{price:599.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'},viktoria:{price:649.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'},pyat:{price:579.99,packContent:1000,packUnit:'г',priceType:'kg',minOrderQty:1,qualityTier:'premium',label:'за кг'}},
+  'Картофель':{svetofor:{price:19.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:46.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:43.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:48.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Морковь':{svetofor:{price:29.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:65.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:59.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:69.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Лук':{svetofor:{price:29.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:99.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:89.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:77.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Капуста':{svetofor:{price:19.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:39.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:42.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:44.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Помидор':{svetofor:{price:129.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:189.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:179.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:199.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Помидоры':{svetofor:{price:129.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:189.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:179.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:199.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Томаты':{svetofor:{price:129.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:189.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:179.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:199.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Кабачок':{svetofor:{price:49.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:89.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:79.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:99.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Болгарский перец':{svetofor:{price:119.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:159.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:149.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:169.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Свёкла':{svetofor:{price:29.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:77.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:82.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:85.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Брокколи':{svetofor:{price:169.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:249.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:229.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:259.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Цветная капуста':{svetofor:{price:149.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:199.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:219.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:189.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Тыква':{svetofor:{price:39.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:69.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:79.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:64.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Огурец':{svetofor:{price:59.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:99.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:89.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:109.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Черри':{svetofor:{price:169.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:229.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:219.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:239.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Паттисоны':{svetofor:{price:99.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:149.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:159.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:139.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Пекинская капуста':{svetofor:{price:59.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'кочан ~1 кг'},spar:{price:89.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'кочан ~1 кг'},viktoria:{price:99.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'кочан ~1 кг'},pyat:{price:79.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'кочан ~1 кг'}},
+  'Сельдерей':{svetofor:{price:79.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:129.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:139.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:119.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Шпинат':{svetofor:{price:129.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 100 г'},spar:{price:199.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 100 г'},viktoria:{price:219.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 100 г'},pyat:{price:179.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 100 г'}},
+  'Чеснок':{svetofor:{price:199.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:299.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:349.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:279.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Перец чили':{svetofor:{price:199.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:299.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:329.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:279.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Перец гриль':{svetofor:{price:199.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:299.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:279.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:319.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Баклажан гриль':{svetofor:{price:189.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:279.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:259.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:299.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Яблоко':{svetofor:{price:49.99,priceType:'kg',minOrderQty:1200,qualityTier:'basic',label:'за кг (мин. 1.2 кг)'},spar:{price:99.99,priceType:'kg',minOrderQty:1200,qualityTier:'standard',label:'за кг'},viktoria:{price:109.99,priceType:'kg',minOrderQty:1200,qualityTier:'standard',label:'за кг'},pyat:{price:119.99,priceType:'kg',minOrderQty:1200,qualityTier:'standard',label:'за кг'}},
+  'Банан':{svetofor:{price:89.99,priceType:'kg',minOrderQty:1200,qualityTier:'basic',label:'за кг (мин. 1.2 кг)'},spar:{price:129.99,priceType:'kg',minOrderQty:1200,qualityTier:'standard',label:'за кг'},viktoria:{price:139.99,priceType:'kg',minOrderQty:1200,qualityTier:'standard',label:'за кг'},pyat:{price:149.99,priceType:'kg',minOrderQty:1200,qualityTier:'standard',label:'за кг'}},
+  'Хурма':{svetofor:{price:149.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:199.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:219.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:189.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Авокадо':{svetofor:{price:89.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'1 шт'},spar:{price:129.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 шт'},viktoria:{price:139.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 шт'},pyat:{price:119.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 шт'}},
+  'Лимон':{svetofor:{price:179.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:249.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:269.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:259.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Лайм':{svetofor:{price:149.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:199.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:219.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:189.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Клубника':{svetofor:{price:299.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:399.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:379.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:419.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Малина':{svetofor:{price:349.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:499.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:479.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:519.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Черника':{svetofor:{price:399.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:549.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:529.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:569.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Рис':{svetofor:{price:99.99,packContent:800,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 800 г'},spar:{price:159.99,packContent:800,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 800 г'},viktoria:{price:169.99,packContent:800,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 800 г'},pyat:{price:199.99,packContent:800,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 800 г'}},
+  'Гречка':{svetofor:{price:49.99,packContent:900,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 900 г'},spar:{price:69.99,packContent:900,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 900 г'},viktoria:{price:112.39,packContent:900,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 900 г'},pyat:{price:99.99,packContent:900,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 900 г'}},
+  'Овсяные хлопья':{svetofor:{price:59.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 500 г'},spar:{price:79.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'},viktoria:{price:89.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'},pyat:{price:84.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'}},
+  'Кукурузная крупа':{svetofor:{price:59.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 500 г'},spar:{price:89.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'},viktoria:{price:99.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'},pyat:{price:79.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'}},
+  'Манка':{svetofor:{price:39.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 500 г'},spar:{price:49.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'},viktoria:{price:54.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'},pyat:{price:44.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'}},
+  'Макароны':{svetofor:{price:59.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 450 г'},spar:{price:89.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 450 г'},viktoria:{price:79.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 450 г'},pyat:{price:99.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 450 г'}},
+  'Спагетти':{svetofor:{price:69.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 450 г'},spar:{price:99.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 450 г'},viktoria:{price:89.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 450 г'},pyat:{price:109.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 450 г'}},
+  'Лапша':{svetofor:{price:59.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 450 г'},spar:{price:89.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 450 г'},viktoria:{price:79.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 450 г'},pyat:{price:99.99,packContent:450,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 450 г'}},
+  'Мука':{svetofor:{price:29.99,packContent:2000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 2 кг'},spar:{price:39.99,packContent:2000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 2 кг'},viktoria:{price:82.39,packContent:2000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 2 кг'},pyat:{price:83.00,packContent:2000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 2 кг'}},
+  'Сахар':{svetofor:{price:49.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 1 кг'},spar:{price:59.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 1 кг'},viktoria:{price:64.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 1 кг'},pyat:{price:62.99,packContent:1000,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 1 кг'}},
+  'Мёд':{svetofor:{price:229.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'банка 500 г'},spar:{price:299.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 500 г'},viktoria:{price:329.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 500 г'},pyat:{price:279.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 500 г'}},
+  'Корица':{svetofor:{price:39.99,packContent:10,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 10 г'},spar:{price:59.99,packContent:10,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 10 г'},viktoria:{price:69.99,packContent:10,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 10 г'},pyat:{price:54.99,packContent:10,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 10 г'}},
+  'Масло растительное':{svetofor:{price:119.99,packContent:1000,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'бутылка 1 л'},spar:{price:169.99,packContent:1000,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 1 л'},viktoria:{price:235.39,packContent:1000,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 1 л'},pyat:{price:149.99,packContent:1000,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 1 л'}},
+  'Масло оливковое':{svetofor:{price:699.99,packContent:500,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'бутылка 500 мл'},spar:{price:899.99,packContent:500,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'бутылка 500 мл'},viktoria:{price:949.99,packContent:500,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'бутылка 500 мл'},pyat:{price:869.99,packContent:500,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'premium',label:'бутылка 500 мл'}},
+  'Специи':{svetofor:{price:39.99,packContent:15,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 15 г'},spar:{price:49.99,packContent:15,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 15 г'},viktoria:{price:54.99,packContent:15,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 15 г'},pyat:{price:44.99,packContent:15,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 15 г'}},
+  'Паприка':{svetofor:{price:49.99,packContent:20,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 20 г'},spar:{price:59.99,packContent:20,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 20 г'},viktoria:{price:69.99,packContent:20,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 20 г'},pyat:{price:54.99,packContent:20,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 20 г'}},
+  'Смесь перцев':{svetofor:{price:59.99,packContent:20,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 20 г'},spar:{price:69.99,packContent:20,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 20 г'},viktoria:{price:79.99,packContent:20,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 20 г'},pyat:{price:64.99,packContent:20,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 20 г'}},
+  'Прованские травы':{svetofor:{price:59.99,packContent:15,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 15 г'},spar:{price:79.99,packContent:15,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 15 г'},viktoria:{price:89.99,packContent:15,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 15 г'},pyat:{price:74.99,packContent:15,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 15 г'}},
+  'Фасоль':{svetofor:{price:59.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'банка 400 г'},spar:{price:89.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 400 г'},viktoria:{price:99.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 400 г'},pyat:{price:84.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 400 г'}},
+  'Чечевица':{svetofor:{price:59.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 500 г'},spar:{price:89.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'},viktoria:{price:99.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'},pyat:{price:79.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'}},
+  'Горох':{svetofor:{price:39.99,packContent:800,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 800 г'},spar:{price:49.99,packContent:800,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 800 г'},viktoria:{price:54.99,packContent:800,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 800 г'},pyat:{price:44.99,packContent:800,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 800 г'}},
+  'Томатная паста':{svetofor:{price:59.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'банка 200 г'},spar:{price:89.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 200 г'},viktoria:{price:99.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 200 г'},pyat:{price:79.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 200 г'}},
+  'Соус цезарь':{svetofor:{price:89.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'бутылка 200 мл'},spar:{price:119.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 200 мл'},viktoria:{price:129.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 200 мл'},pyat:{price:109.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 200 мл'}},
+  'Соус терияки':{svetofor:{price:99.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'бутылка 200 мл'},spar:{price:129.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 200 мл'},viktoria:{price:139.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 200 мл'},pyat:{price:119.99,packContent:200,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 200 мл'}},
+  'Соевый соус':{svetofor:{price:59.99,packContent:250,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'бутылка 250 мл'},spar:{price:89.99,packContent:250,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 250 мл'},viktoria:{price:99.99,packContent:250,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 250 мл'},pyat:{price:79.99,packContent:250,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'бутылка 250 мл'}},
+  'Кунжут':{svetofor:{price:59.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 100 г'},spar:{price:79.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 100 г'},viktoria:{price:89.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 100 г'},pyat:{price:69.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 100 г'}},
+  'Лемонграсс':{svetofor:{price:69.99,packContent:50,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 50 г'},spar:{price:99.99,packContent:50,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 50 г'},viktoria:{price:109.99,packContent:50,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 50 г'},pyat:{price:89.99,packContent:50,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 50 г'}},
+  'Кокосовое молоко':{svetofor:{price:119.99,packContent:400,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'банка 400 мл'},spar:{price:159.99,packContent:400,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 400 мл'},viktoria:{price:169.99,packContent:400,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 400 мл'},pyat:{price:149.99,packContent:400,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 400 мл'}},
+  'Грибы':{svetofor:{price:149.99,priceType:'kg',minOrderQty:1000,qualityTier:'basic',label:'за кг (мин. 1 кг)'},spar:{price:199.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},viktoria:{price:219.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'},pyat:{price:189.99,priceType:'kg',minOrderQty:1000,qualityTier:'standard',label:'за кг'}},
+  'Майонез':{svetofor:{price:59.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'банка 400 г'},spar:{price:89.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 400 г'},viktoria:{price:99.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 400 г'},pyat:{price:79.99,packContent:400,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 400 г'}},
+  'Хлебцы':{svetofor:{price:39.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 10 шт'},spar:{price:49.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 10 шт'},viktoria:{price:54.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 10 шт'},pyat:{price:44.99,packContent:10,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 10 шт'}},
+  'Лаваш':{svetofor:{price:29.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 200 г'},spar:{price:39.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 г'},viktoria:{price:42.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 г'},pyat:{price:37.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 200 г'}},
+  'Тортилья':{svetofor:{price:54.99,packContent:6,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 6 шт'},spar:{price:69.99,packContent:6,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 6 шт'},viktoria:{price:74.99,packContent:6,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 6 шт'},pyat:{price:64.99,packContent:6,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 6 шт'}},
+  'Семена чиа':{svetofor:{price:159.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 200 г'},spar:{price:199.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},viktoria:{price:219.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},pyat:{price:189.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'}},
+  'Семена льна':{svetofor:{price:69.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 200 г'},spar:{price:89.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},viktoria:{price:99.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},pyat:{price:79.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'}},
+  'Гранола':{svetofor:{price:129.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 300 г'},spar:{price:159.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 300 г'},viktoria:{price:169.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 300 г'},pyat:{price:149.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 300 г'}},
+  'Печенье':{svetofor:{price:59.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 200 г'},spar:{price:79.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},viktoria:{price:89.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},pyat:{price:69.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'}},
+  'Сухарики':{svetofor:{price:44.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 100 г'},spar:{price:59.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 100 г'},viktoria:{price:64.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 100 г'},pyat:{price:54.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 100 г'}},
+  'Протеиновый батончик':{svetofor:{price:79.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'1 батончик'},spar:{price:99.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 батончик'},viktoria:{price:109.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 батончик'},pyat:{price:89.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 батончик'}},
+  'Салат романо':{svetofor:{price:99.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пучок 200 г'},spar:{price:149.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 200 г'},viktoria:{price:139.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 200 г'},pyat:{price:159.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 200 г'}},
+  'Петрушка':{svetofor:{price:29.99,packContent:50,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пучок 50 г'},spar:{price:49.99,packContent:50,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 50 г'},viktoria:{price:45.99,packContent:50,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 50 г'},pyat:{price:54.99,packContent:50,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 50 г'}},
+  'Укроп':{svetofor:{price:29.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пучок 30 г'},spar:{price:49.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 30 г'},viktoria:{price:45.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 30 г'},pyat:{price:54.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 30 г'}},
+  'Базилик свежий':{svetofor:{price:39.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пучок 30 г'},spar:{price:59.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 30 г'},viktoria:{price:64.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 30 г'},pyat:{price:54.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 30 г'}},
+  'Кинза':{svetofor:{price:29.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пучок 30 г'},spar:{price:49.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 30 г'},viktoria:{price:45.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 30 г'},pyat:{price:54.99,packContent:30,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пучок 30 г'}},
+  'Кукуруза':{svetofor:{price:59.99,packContent:340,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'банка 340 г'},spar:{price:89.99,packContent:340,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 340 г'},viktoria:{price:99.99,packContent:340,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 340 г'},pyat:{price:79.99,packContent:340,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'банка 340 г'}},
+  'Чернослив':{svetofor:{price:99.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 200 г'},spar:{price:149.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},viktoria:{price:159.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},pyat:{price:139.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'}},
+  'Курага':{svetofor:{price:169.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 200 г'},spar:{price:249.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},viktoria:{price:269.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},pyat:{price:229.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'}},
+  'Изюм':{svetofor:{price:99.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 200 г'},spar:{price:159.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},viktoria:{price:169.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},pyat:{price:149.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'}},
+  'Грецкие орехи':{svetofor:{price:249.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 200 г'},spar:{price:349.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},viktoria:{price:379.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},pyat:{price:329.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'}},
+  'Миндаль':{svetofor:{price:299.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 200 г'},spar:{price:399.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},viktoria:{price:429.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'},pyat:{price:369.99,packContent:200,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 200 г'}},
+  'Тофу':{svetofor:{price:99.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 300 г'},spar:{price:149.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 300 г'},viktoria:{price:159.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 300 г'},pyat:{price:139.99,packContent:300,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 300 г'}},
+  'Пельмени':{svetofor:{price:199.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 500 г'},spar:{price:299.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'},viktoria:{price:329.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'},pyat:{price:279.99,packContent:500,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 500 г'}},
+  'Бульон':{svetofor:{price:39.99,packContent:500,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'упаковка 500 мл'},spar:{price:59.99,packContent:500,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 500 мл'},viktoria:{price:64.99,packContent:500,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 500 мл'},pyat:{price:54.99,packContent:500,packUnit:'мл',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'упаковка 500 мл'}},
+  'Шоколад Alpen Gold':{svetofor:{price:69.99,packContent:90,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'плитка 90 г'},spar:{price:99.99,packContent:90,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'плитка 90 г'},viktoria:{price:109.99,packContent:90,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'плитка 90 г'},pyat:{price:89.99,packContent:90,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'плитка 90 г'}},
+  'Шоколад «Победа»':{svetofor:{price:79.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'плитка 100 г'},spar:{price:109.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'плитка 100 г'},viktoria:{price:119.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'плитка 100 г'},pyat:{price:99.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'плитка 100 г'}},
+  'Печенье Oreo':{svetofor:{price:59.99,packContent:95,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 95 г'},spar:{price:79.99,packContent:95,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 95 г'},viktoria:{price:89.99,packContent:95,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 95 г'},pyat:{price:69.99,packContent:95,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 95 г'}},
+  'Печенье «Юбилейное»':{svetofor:{price:44.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'пачка 100 г'},spar:{price:59.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 100 г'},viktoria:{price:64.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 100 г'},pyat:{price:54.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'пачка 100 г'}},
+  'Медвежонок Барни':{svetofor:{price:29.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'1 шт'},spar:{price:39.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 шт'},viktoria:{price:42.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 шт'},pyat:{price:37.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 шт'}},
+  'Choco Pie':{spar:{price:29.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 шт'},viktoria:{price:32.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 шт'},pyat:{price:27.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'1 шт'},svetofor:{price:24.99,packContent:1,packUnit:'шт',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'1 шт'}},
+  'Марципан':{svetofor:{price:169.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'basic',label:'100 г'},spar:{price:199.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'100 г'},viktoria:{price:219.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'100 г'},pyat:{price:189.99,packContent:100,packUnit:'г',priceType:'pack',minOrderQty:1,qualityTier:'standard',label:'100 г'}}
+};
+
+var STORES = {
+  svetofor:{name:'Светофор',color:'#f39c12',note:''},
+  spar:{name:'SPAR',color:'#27ae60',note:''},
+  viktoria:{name:'Виктория',color:'#3498db',note:''},
+  pyat:{name:'Пятёрочка',color:'#e74c3c',note:''}
+};
+
+var SEASONAL = {
+  'зима':{tip:'☃️ Зимой не хватает солнца и витаминов.',products:['Квашеная капуста','Замороженные ягоды','Цитрусовые','Корнеплоды','Жирная рыба','Крупы']},
+  'весна':{tip:'🌱 Весной — авитаминоз. Добавь зелень, редис.',products:['Зелёный лук','Редис','Молодая капуста','Шпинат','Кисломолочные']},
+  'лето':{tip:'☀️ Летом максимум свежих овощей и фруктов.',products:['Ягоды','Кабачки','Помидоры','Ранние фрукты','Зелень']},
+  'осень':{tip:'🍂 Осень — время тыквы, яблок и корнеплодов.',products:['Тыква','Яблоки','Морковь, свёкла','Капуста','Грибы']}
+};
+
+var MONEY_TIPS = [
+  '🟠 «Светофор» — самый дешёвый по базовым продуктам: картофель 20 ₽/кг, морковь 30 ₽/кг, куриное филе 250 ₽/кг.',
+  '🟢 В «Светофоре» куриное филе блок 2 кг — 890 ₽ (445 ₽/кг).',
+  '🟢 В SPAR мука 39,99 ₽ за 2 кг, в «Виктории» — 82,39 ₽.',
+  '🟡 Куриные бёдра дешевле филе почти в 2 раза.',
+  '🟡 Замороженные овощи и ягоды дешевле свежих на 30–50%.',
+  '🟡 Готовьте впрок блюда с 🧊 — экономит время и деньги.',
+  '🔴 Куриное филе в «Виктории» — 569 ₽/кг, в «Светофоре» — 250 ₽/кг.'
+];
+
+var ALTERNATIVES = {
+  'Малина':['Клубника','Черника'],'Черника':['Малина','Клубника'],'Клубника':['Малина','Черника'],
+  'Лосось':['Форель слабосоленая'],'Форель слабосоленая':['Лосось слабосоленый'],
+  'Креветки':['Минтай','Треска'],'Тофу':['Сыр Российский'],'Кокосовое молоко':['Сливки'],
+  'Пармезан':['Сыр Гауда','Сыр Российский'],'Моцарелла':['Сыр Российский'],
+  'Грецкие орехи':['Миндаль'],'Миндаль':['Грецкие орехи'],
+  'Куриное филе':['Куриная грудка','Куриное филе блок 2 кг','Индейка'],
+  'Куриная грудка':['Куриное филе','Куриное филе блок 2 кг','Индейка'],
+  'Куриное филе блок 2 кг':['Куриное филе','Куриная грудка'],
+  'Куриные бёдра':['Куриные голени','Курица'],
+  'Авокадо':['Огурец'],'Хурма':['Яблоко'],
+  'Шоколад Alpen Gold':['Шоколад «Победа»'],'Шоколад «Победа»':['Шоколад Alpen Gold'],
+  'Печенье Oreo':['Печенье «Юбилейное»'],'Печенье «Юбилейное»':['Печенье Oreo'],
+  'Медвежонок Барни':['Choco Pie'],'Choco Pie':['Медвежонок Барни'],
+  'Марципан':['Шоколад «Победа»']
+};
+
+/* =========================================================
+   СОСТОЯНИЕ
+   ========================================================= */
+var profiles=[];
+var activeProfileId=null;
+var menuPlans={};
+var editingId=null;
+var currentStore='svetofor';
+var shopSelectedProfiles={};
+var recipeServings=1;
+var recipeDishId=null;
+var replaceCtx={dayIdx:0,mealIdx:0};
+
+/* =========================================================
+   УТИЛИТЫ
+   ========================================================= */
+function load(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function round(n,d){if(d===undefined)d=1;return Math.round(n*Math.pow(10,d))/Math.pow(10,d);}
+function currentSeason(){var m=new Date().getMonth();if(m<=1||m===11)return 'зима';if(m<=4)return 'весна';if(m<=7)return 'лето';return 'осень';}
+function seasonEmoji(s){return{'зима':'❄️','весна':'🌸','лето':'☀️','осень':'🍂'}[s]||'🌍';}
+function genderLabel(g){return g==='male'?'Мужской':'Женский';}
+function goalLabel(g){return{'lose':'Похудение','maintain':'Поддержание','gain':'Набор массы'}[g]||g;}
+function todayISO(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function findDish(id){for(var i=0;i<DISHES.length;i++)if(DISHES[i].id===id)return DISHES[i];return null;}
+function findProfile(id){for(var i=0;i<profiles.length;i++)if(profiles[i].id===id)return profiles[i];return null;}
+function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+var ING_UNIT_TO_GRAMS={'зубчика':5,'ломтика':30,'лист':200,'пучок':50};
+
+function mealKcal(m){ return Math.round(m.dish.kcal * (m.factor||1)); }
+function mealP(m){ return Math.round(m.dish.p * (m.factor||1)); }
+function mealF(m){ return Math.round(m.dish.f * (m.factor||1)); }
+function mealC(m){ return Math.round(m.dish.c * (m.factor||1)); }
+function fmtFactor(f){ f=Math.round(f*100)/100; if (Math.abs(f-1)<0.01) return '1'; return String(f).replace(/\.?0+$/,''); }
+
+function priceTierBadge(tier){
+  if(tier==='budget') return '<span class="price-badge budget" title="Бюджетное блюдо">🟢 бюджет</span>';
+  if(tier==='mid') return '<span class="price-badge mid" title="Средняя ценовая категория">🔵 среднее</span>';
+  if(tier==='premium') return '<span class="price-badge premium" title="Дорогое блюдо">🔴 премиум</span>';
+  return '';
+}
+
+/* =========================================================
+   ФАЗА ЦИКЛА
+   ========================================================= */
+function getCycleInfo(profile){
+  if(!profile||profile.gender!=='female'||!profile.cycleEnabled||!profile.cycleStart)return null;
+  var start=new Date(profile.cycleStart+'T00:00:00');
+  if(isNaN(start.getTime())) return null;
+  var now=new Date();now.setHours(0,0,0,0);
+  var diffDays=Math.floor((now-start)/86400000);
+  var cycleLen=parseInt(profile.cycleLength,10)||28;
+  var periodLen=parseInt(profile.periodLength,10)||5;
+  var dayInCycle=((diffDays%cycleLen)+cycleLen)%cycleLen+1;
+  var ovulationDay=cycleLen-14;
+  var phase;
+  if(dayInCycle<=periodLen)phase='menstrual';
+  else if(dayInCycle<ovulationDay-1)phase='follicular';
+  else if(dayInCycle<=ovulationDay+1)phase='ovulation';
+  else phase='luteal';
+  return{phase:phase,dayInCycle:dayInCycle,cycleLen:cycleLen,periodLen:periodLen,
+    daysToNext:cycleLen-dayInCycle+1,ovulationDay:ovulationDay,info:PHASE_INFO[phase]};
+}
+
+/* =========================================================
+   ШАГИ → КОЭФФИЦИЕНТ
+   ========================================================= */
+function stepsToActivity(steps){
+  steps=parseInt(steps,10)||0;
+  if(steps<=0)return null;
+  if(steps<3000)return 1.2;if(steps<5000)return 1.3;if(steps<7500)return 1.4;
+  if(steps<10000)return 1.5;if(steps<12500)return 1.65;if(steps<15000)return 1.75;
+  return 1.9;
+}
+function activityToSteps(act){
+  act=parseFloat(act)||1.55;
+  if(act<=1.2)return 2500;if(act<=1.3)return 4000;if(act<=1.4)return 6500;
+  if(act<=1.5)return 8500;if(act<=1.65)return 11000;if(act<=1.75)return 13500;
+  return 16000;
+}
+function activityLabel(act){
+  if(act<=1.2)return 'сидячий';if(act<=1.375)return 'небольшая активность';
+  if(act<=1.55)return 'средняя активность';if(act<=1.725)return 'высокая активность';
+  return 'очень высокая активность';
+}
+function getEffectiveActivity(p){
+  if(p&&p.useSteps&&p.steps>0){var a=stepsToActivity(p.steps);if(a)return a;}
+  return parseFloat(p.activity)||1.55;
+}
+function syncActivityFromSteps(){
+  var useStepsEl=document.getElementById('p_useSteps');
+  var stepsEl=document.getElementById('p_steps');
+  var actEl=document.getElementById('p_activity');
+  var hintEl=document.getElementById('stepsHint');
+  if(!stepsEl||!actEl)return;
+  var steps=parseInt(stepsEl.value,10)||0;
+  if(useStepsEl&&!useStepsEl.checked){if(hintEl)hintEl.textContent='Используется уровень активности: '+actEl.value;return;}
+  if(steps>0){
+    var act=stepsToActivity(steps);
+    actEl.value=String(act);
+    if(hintEl)hintEl.textContent='≈ '+Math.round((act-1)*100)+'% над базовым метаболизмом.';
+  } else if(hintEl)hintEl.textContent='';
+}
+function syncStepsFromActivity(){
+  var actEl=document.getElementById('p_activity');
+  var stepsEl=document.getElementById('p_steps');
+  var useStepsEl=document.getElementById('p_useSteps');
+  if(!actEl||!stepsEl)return;
+  if(useStepsEl&&useStepsEl.checked){stepsEl.value=activityToSteps(actEl.value);syncActivityFromSteps();}
+}
+
+/* =========================================================
+   КБЖУ
+   ========================================================= */
+function calcKBJU(p){
+  var w=parseFloat(p.weight)||0;
+  var h=parseFloat(p.height)||0;
+  var a=parseFloat(p.age)||0;
+  var bf=parseFloat(p.bodyFat)||0;
+  var bmr,usesKatch=false;
+  if(bf>0&&bf<60){
+    var lbm=w*(1-bf/100);
+    bmr=370+21.6*lbm;
+    usesKatch=true;
+  } else {
+    bmr=(p.gender==='male')?10*w+6.25*h-5*a+5:10*w+6.25*h-5*a-161;
+  }
+  var act=getEffectiveActivity(p);
+  var tdee=bmr*act;
+  var kcal=tdee;
+  if(p.goal==='lose')kcal=tdee*0.85;
+  if(p.goal==='gain')kcal=tdee*1.15;
+  var cycle=getCycleInfo(p);
+  var phaseAdjust=cycle?cycle.info.kcalAdjust:1.0;
+  kcal=kcal*phaseAdjust;
+  var protein=Math.round((kcal*0.28)/4);
+  var fat=Math.round((kcal*0.28)/9);
+  var carbs=Math.round((kcal*0.44)/4);
+  var fiber=Math.round((kcal/1000)*14);
+  return{bmr:Math.round(bmr),tdee:Math.round(tdee),kcal:Math.round(kcal),
+    protein:protein,fat:fat,carbs:carbs,fiber:fiber,
+    phaseAdjust:phaseAdjust,effectiveActivity:act,usesKatch:usesKatch};
+}
+
+/* =========================================================
+   ВКЛАДКИ
+   ========================================================= */
+function switchTab(name,btn){
+  var tabs=document.querySelectorAll('.tab'),panels=document.querySelectorAll('.panel'),i;
+  for(i=0;i<tabs.length;i++)tabs[i].classList.remove('active');
+  for(i=0;i<panels.length;i++)panels[i].classList.remove('active');
+  if(btn)btn.classList.add('active');
+  var target=document.getElementById('panel-'+name);
+  if(target)target.classList.add('active');
+  if(name==='shop'){renderStoreSelector();renderShopProfileSelector();renderShopping();}
+  if(name==='tips')renderTips();
+  if(name==='menu'){refreshMenuProfileSelect();onMenuProfileChange();renderCycleOnMenu();renderMenuOutput();renderMenuProfilesSummary();}
+}
+
+/* =========================================================
+   ПРОФИЛИ
+   ========================================================= */
+function renderProfiles(){
+  var box=document.getElementById('profilesList');if(!box)return;
+  if(profiles.length===0){
+    box.innerHTML='<div class="empty">Пока нет сохранённых профилей</div>';
+    var kc=document.getElementById('kbjuCard');if(kc)kc.style.display='none';
+    var cc=document.getElementById('cycleStatusCard');if(cc)cc.innerHTML='';
+    var fc=document.getElementById('favoritesCard');if(fc)fc.style.display='none';
+    return;
+  }
+  var html='';
+  for(var i=0;i<profiles.length;i++){
+    var p=profiles[i],kbju=calcKBJU(p);
+    var activeCls=p.id===activeProfileId?'active':'';
+    var cycle=getCycleInfo(p);
+    var cycleTag=cycle?' · '+cycle.info.emoji+' '+cycle.info.name+' ('+cycle.dayInCycle+' д.)':'';
+    var favCount=(p.favorites||[]).length;
+    var favTag=favCount>0?' · ⭐ '+favCount:'';
+    var stepsTag=(p.useSteps&&p.steps>0)?' · 🚶 '+p.steps.toLocaleString('ru')+' шаг.':'';
+    var katchTag=kbju.usesKatch?' · 📊 Katch':'';
+    var mealsTag=p.mealsPerDay?' · '+p.mealsPerDay+' приём.':'';
+    var planTag=menuPlans[p.id]?' · 📅 меню':'';
+    html+='<div class="profile-item '+activeCls+'" onclick="selectProfile(\''+p.id+'\')">'+
+      '<div><div class="name">👤 '+escapeHtml(p.name||'Без имени')+'</div>'+
+      '<div class="meta">'+genderLabel(p.gender)+', '+p.age+' лет, '+p.weight+' кг · '+goalLabel(p.goal)+' · '+kbju.kcal+' ккал/день'+stepsTag+katchTag+mealsTag+planTag+cycleTag+favTag+'</div></div>'+
+      '<button class="btn btn-secondary" onclick="event.stopPropagation(); editProfile(\''+p.id+'\')">✏️</button></div>';
+  }
+  box.innerHTML=html;
+  if(activeProfileId){
+    var ap=findProfile(activeProfileId);
+    if(ap){showKBJU(ap);renderCycleStatus(ap);renderFavorites(ap);}
+  }
+}
+function selectProfile(id){
+  activeProfileId=id;save('activeProfile_v2',id);
+  renderProfiles();refreshMenuProfileSelect();onMenuProfileChange();renderCycleOnMenu();renderMenuOutput();
+}
+function showKBJU(p){
+  var k=calcKBJU(p);
+  var card=document.getElementById('kbjuCard');if(card)card.style.display='block';
+  var cycle=getCycleInfo(p),phaseNote='';
+  if(cycle&&k.phaseAdjust!==1.0){
+    var pct=Math.round(Math.abs(k.phaseAdjust-1)*100);
+    phaseNote='<div class="tip" style="margin-top:10px;">'+cycle.info.emoji+' Фаза «'+cycle.info.name+'»: калории +'+pct+'%.</div>';
+  }
+  var stepsInfo='';
+  if(p.useSteps&&p.steps>0)stepsInfo='<span>Шагов в день: <strong>'+p.steps.toLocaleString('ru')+'</strong> (коэф. '+k.effectiveActivity.toFixed(2)+')</span>';
+  var katchInfo=k.usesKatch?'<span>Формула: <strong>Кэтча-МакАрдла</strong></span>':'<span>Формула: <strong>Миффлина-Сан Жеора</strong></span>';
+  var mealsPerDay=p.mealsPerDay||5;
+  var mp=MEAL_PLANS[mealsPerDay]||MEAL_PLANS[5];
+  var distParts=[];
+  for(var i=0;i<mp.length;i++)distParts.push(mp[i].key+': '+Math.round(k.kcal*mp[i].share)+' ккал');
+  var mealDistr='<div style="margin-top:12px;font-size:13px;color:#7f8c8d;">'+
+    '<strong>Распределение на '+mealsPerDay+' приём(а):</strong> '+distParts.join(' · ')+'</div>';
+  var res=document.getElementById('kbjuResult');
+  if(res)res.innerHTML=
+    '<div class="kbju-box">'+
+      '<div class="kbju-cell"><div class="label">Калории</div><div class="value">'+k.kcal+'</div><div class="label">ккал</div></div>'+
+      '<div class="kbju-cell"><div class="label">Белки</div><div class="value">'+k.protein+'</div><div class="label">г</div></div>'+
+      '<div class="kbju-cell"><div class="label">Жиры</div><div class="value">'+k.fat+'</div><div class="label">г</div></div>'+
+      '<div class="kbju-cell"><div class="label">Углеводы</div><div class="value">'+k.carbs+'</div><div class="label">г</div></div>'+
+      '<div class="kbju-cell"><div class="label">Клетчатка</div><div class="value">'+k.fiber+'</div><div class="label">г</div></div>'+
+    '</div>'+
+    '<div class="stats-mini"><span>Базовый метаболизм: <strong>'+k.bmr+' ккал</strong></span>'+
+    '<span>С активностью: <strong>'+k.tdee+' ккал</strong></span>'+stepsInfo+katchInfo+'</div>'+phaseNote+mealDistr;
+}
+function renderFavorites(p){
+  var card=document.getElementById('favoritesCard');if(!card)return;
+  var favs=p.favorites||[];
+  if(favs.length===0){card.style.display='none';return;}
+  card.style.display='block';
+  var countBadge=document.getElementById('favCount');if(countBadge)countBadge.textContent=favs.length+' шт.';
+  var html='';
+  for(var i=0;i<favs.length;i++){
+    var d=findDish(favs[i]);if(!d)continue;
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #ecf0f1;font-size:14px;">'+
+      '<span>⭐ '+escapeHtml(d.name)+' '+priceTierBadge(d.priceTier)+' <span style="color:#7f8c8d;font-size:12px;">('+d.cat+', '+d.kcal+' ккал)</span></span>'+
+      '<div style="display:flex;gap:6px;">'+
+      '<button class="btn btn-secondary btn-mini" onclick="openRecipe(\''+d.id+'\', 1)">📖</button>'+
+      '<button class="btn btn-secondary btn-mini" onclick="toggleFavorite(\''+d.id+'\'); renderFavorites(findProfile(activeProfileId));">✕</button>'+
+      '</div></div>';
+  }
+  var list=document.getElementById('favoritesList');if(list)list.innerHTML=html;
+}
+function toggleFavorite(dishId){
+  var p=findProfile(activeProfileId);
+  if(!p){alert('Сначала выберите профиль');return;}
+  if(!p.favorites)p.favorites=[];
+  var idx=p.favorites.indexOf(dishId);
+  if(idx===-1)p.favorites.push(dishId);else p.favorites.splice(idx,1);
+  save('profiles_v2',profiles);
+  renderProfiles();renderMenuOutput();
+  if(recipeDishId===dishId)renderRecipe();
+}
+function isFavorite(dishId){
+  var p=findProfile(activeProfileId);
+  if(!p)return false;
+  return(p.favorites||[]).indexOf(dishId)!==-1;
+}
+function renderCycleStatus(p){
+  var box=document.getElementById('cycleStatusCard');if(!box)return;
+  var cycle=getCycleInfo(p);
+  if(!cycle){box.innerHTML='';return;}
+  var phase=cycle.phase,cycleLen=cycle.cycleLen,periodLen=cycle.periodLen,
+    daysToNext=cycle.daysToNext,ovulationDay=cycle.ovulationDay,info=cycle.info;
+  var menstrualEnd=periodLen,follicularEnd=ovulationDay-1,ovulationEnd=ovulationDay+1;
+  var segments=[
+    {phase:'menstrual',label:'Менстр.',from:1,to:menstrualEnd,color:PHASE_INFO.menstrual.color},
+    {phase:'follicular',label:'Фоллик.',from:menstrualEnd+1,to:follicularEnd,color:PHASE_INFO.follicular.color},
+    {phase:'ovulation',label:'Овул.',from:follicularEnd+1,to:ovulationEnd,color:PHASE_INFO.ovulation.color},
+    {phase:'luteal',label:'Лютеин.',from:ovulationEnd+1,to:cycleLen,color:PHASE_INFO.luteal.color}
+  ];
+  var barsHtml='';
+  for(var i=0;i<segments.length;i++){
+    var s=segments[i],width=((s.to-s.from+1)/cycleLen)*100;
+    if(width<=0) continue;
+    var dim=s.phase===phase?'':'dim';
+    barsHtml+='<div class="'+dim+'" style="background:'+s.color+';width:'+width+'%;">'+s.label+'</div>';
+  }
+  var productsHtml='';
+  for(var j=0;j<info.products.length;j++)productsHtml+='<span>'+info.products[j]+'</span>';
+  box.innerHTML='<div class="cycle-card"><div class="cycle-header">'+
+    '<div><div style="font-size:13px;color:#7f8c8d;font-weight:600;">Текущая фаза</div>'+
+    '<div class="phase-badge" style="background:'+info.color+';margin-top:6px;">'+info.emoji+' '+info.name+'</div></div>'+
+    '<div style="text-align:right;"><div class="cycle-day">День '+cycle.dayInCycle+' из '+cycleLen+'</div>'+
+    '<div class="cycle-day">До менструации ≈ '+daysToNext+' дн.</div></div></div>'+
+    '<div class="cycle-bar">'+barsHtml+'</div>'+
+    '<div class="tip" style="background:white;border-left-color:'+info.color+';">'+
+    '<strong>'+info.emoji+' '+info.name+' ('+info.days+'):</strong> '+info.tip+'</div>'+
+    '<div class="phase-products">'+productsHtml+'</div>'+
+    '<div class="btn-row" style="margin-top:12px;"><button class="btn btn-pink" onclick="markPeriodForActive()">🩸 Отметить начало цикла сегодня</button></div></div>';
+}
+
+/* =========================================================
+   РЕДАКТОР ПРОФИЛЯ
+   ========================================================= */
+function toggleCycleSection(){
+  var g=document.getElementById('p_gender'),sec=document.getElementById('cycleSection');
+  if(!g||!sec)return;
+  sec.style.display=g.value==='female'?'block':'none';
+  updateCyclePreview();
+}
+function toggleCycleFields(){
+  var cb=document.getElementById('p_cycle_enabled'),f=document.getElementById('cycleFields');
+  if(!cb||!f)return;
+  f.style.display=cb.checked?'block':'none';
+}
+function updateCyclePreview(){
+  var box=document.getElementById('cyclePreview');if(!box)return;
+  var p=collectProfileFromForm();
+  var cycle=getCycleInfo(p);
+  box.innerHTML=cycle?'Сейчас: <strong>'+cycle.info.emoji+' '+cycle.info.name+'</strong>, день '+cycle.dayInCycle+' из '+cycle.cycleLen+'.':'';
+}
+function collectProfileFromForm(){
+  var g=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  var c=function(id){var el=document.getElementById(id);return el?el.checked:false;};
+  return{
+    id:editingId||'tmp',
+    name:g('p_name').trim(),
+    gender:g('p_gender'),
+    age:parseFloat(g('p_age'))||0,
+    weight:parseFloat(g('p_weight'))||0,
+    height:parseFloat(g('p_height'))||0,
+    bodyFat:parseFloat(g('p_bodyfat'))||0,
+    targetWeight:parseFloat(g('p_targetWeight'))||0,
+    activity:g('p_activity'),
+    steps:parseInt(g('p_steps'),10)||0,
+    useSteps:c('p_useSteps'),
+    goal:g('p_goal'),
+    likesFish:c('p_likesFish'),
+    likesMeat:c('p_likesMeat'),
+    likesEggs:c('p_likesEggs'),
+    likesDairy:c('p_likesDairy'),
+    likesSweets:c('p_likesSweets'),
+    vegetarian:c('p_vegetarian'),
+    stress:c('p_stress'),
+    allergies:g('p_allergies').split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean),
+    dislikes:g('p_dislikes').split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean),
+    cycleEnabled:c('p_cycle_enabled'),
+    cycleStart:g('p_cycle_start'),
+    cycleLength:parseInt(g('p_cycle_length'),10)||28,
+    periodLength:parseInt(g('p_period_length'),10)||5
+  };
+}
+function markPeriodToday(){
+  var el=document.getElementById('p_cycle_start');if(el)el.value=todayISO();
+  var cb=document.getElementById('p_cycle_enabled');if(cb)cb.checked=true;
+  toggleCycleFields();updateCyclePreview();
+}
+function markPeriodForActive(){
+  if(!activeProfileId)return;
+  var p=findProfile(activeProfileId);if(!p)return;
+  p.cycleEnabled=true;p.cycleStart=todayISO();
+  if(!p.cycleLength)p.cycleLength=28;
+  if(!p.periodLength)p.periodLength=5;
+  save('profiles_v2',profiles);
+  renderProfiles();renderCycleOnMenu();renderTips();
+  alert('Отмечено начало цикла.');
+}
+function setValue(id,v){var el=document.getElementById(id);if(el)el.value=v;}
+function setChecked(id,v){var el=document.getElementById(id);if(el)el.checked=v;}
+function newProfile(){
+  editingId=null;
+  var t=document.getElementById('editorTitle');if(t)t.textContent='Новый профиль';
+  setValue('p_name','');setValue('p_gender','female');setValue('p_age',30);
+  setValue('p_weight',65);setValue('p_height',168);setValue('p_bodyfat','');setValue('p_targetWeight','');
+  setValue('p_activity','1.55');
+  setValue('p_steps',8500);setChecked('p_useSteps',true);
+  setValue('p_goal','maintain');
+  setChecked('p_likesFish',true);setChecked('p_likesMeat',true);
+  setChecked('p_likesEggs',true);setChecked('p_likesDairy',true);setChecked('p_likesSweets',true);
+  setChecked('p_vegetarian',false);setChecked('p_stress',false);
+  setValue('p_allergies','');setValue('p_dislikes','');
+  setChecked('p_cycle_enabled',false);setValue('p_cycle_start','');
+  setValue('p_cycle_length',28);setValue('p_period_length',5);
+  var db=document.getElementById('deleteBtn');if(db)db.style.display='none';
+  var ed=document.getElementById('profileEditor');if(ed)ed.style.display='block';
+  toggleCycleSection();toggleCycleFields();
+  setTimeout(syncActivityFromSteps,0);
+  if(ed)ed.scrollIntoView({behavior:'smooth'});
+}
+function editProfile(id){
+  var p=findProfile(id);if(!p)return;
+  editingId=id;
+  var t=document.getElementById('editorTitle');if(t)t.textContent='Редактирование: '+(p.name||'');
+  setValue('p_name',p.name||'');setValue('p_gender',p.gender);setValue('p_age',p.age);
+  setValue('p_weight',p.weight);setValue('p_height',p.height);
+  setValue('p_bodyfat',p.bodyFat||'');setValue('p_targetWeight',p.targetWeight||'');
+  setValue('p_activity',p.activity);
+  setValue('p_steps',p.steps||activityToSteps(p.activity));
+  setChecked('p_useSteps',p.useSteps!==false);
+  setValue('p_goal',p.goal);
+  setChecked('p_likesFish',p.likesFish!==false);
+  setChecked('p_likesMeat',p.likesMeat!==false);
+  setChecked('p_likesEggs',p.likesEggs!==false);
+  setChecked('p_likesDairy',p.likesDairy!==false);
+  setChecked('p_likesSweets',p.likesSweets!==false);
+  setChecked('p_vegetarian',!!p.vegetarian);setChecked('p_stress',!!p.stress);
+  setValue('p_allergies',(p.allergies||[]).join(', '));
+  setValue('p_dislikes',(p.dislikes||[]).join(', '));
+  setChecked('p_cycle_enabled',!!p.cycleEnabled);
+  setValue('p_cycle_start',p.cycleStart||'');setValue('p_cycle_length',p.cycleLength||28);
+  setValue('p_period_length',p.periodLength||5);
+  var db=document.getElementById('deleteBtn');if(db)db.style.display='inline-block';
+  var ed=document.getElementById('profileEditor');
+  if(ed){ed.style.display='block';ed.scrollIntoView({behavior:'smooth'});}
+  toggleCycleSection();toggleCycleFields();updateCyclePreview();
+  setTimeout(syncActivityFromSteps,0);
+}
+function cancelEdit(){var ed=document.getElementById('profileEditor');if(ed)ed.style.display='none';editingId=null;}
+function saveProfile(){
+  var p=collectProfileFromForm();
+  if(!p.name){alert('Введите имя');return;}
+  if(p.cycleEnabled&&p.gender==='female'&&!p.cycleStart){alert('Укажите дату начала цикла.');return;}
+  if(editingId){
+    for(var i=0;i<profiles.length;i++){
+      if(profiles[i].id===editingId){
+        p.id=editingId;p.favorites=profiles[i].favorites||[];
+        p.mealsPerDay=profiles[i].mealsPerDay||5;
+        profiles[i]=p;break;
+      }
+    }
+  }else{
+    p.id='p_'+Date.now();p.favorites=[];p.mealsPerDay=5;
+    profiles.push(p);activeProfileId=p.id;save('activeProfile_v2',activeProfileId);
+  }
+  save('profiles_v2',profiles);
+  editingId=null;
+  var ed=document.getElementById('profileEditor');if(ed)ed.style.display='none';
+  renderProfiles();refreshMenuProfileSelect();onMenuProfileChange();renderCycleOnMenu();renderMenuOutput();
+}
+function deleteProfile(){
+  if(!editingId)return;
+  if(!confirm('Удалить профиль?'))return;
+  var np=[];
+  for(var i=0;i<profiles.length;i++)if(profiles[i].id!==editingId)np.push(profiles[i]);
+  profiles=np;delete menuPlans[editingId];
+  save('menuPlans_v3',menuPlans);
+  if(activeProfileId===editingId){activeProfileId=profiles.length?profiles[0].id:null;save('activeProfile_v2',activeProfileId);}
+  save('profiles_v2',profiles);editingId=null;
+  var ed=document.getElementById('profileEditor');if(ed)ed.style.display='none';
+  renderProfiles();refreshMenuProfileSelect();onMenuProfileChange();renderCycleOnMenu();
+}
+
+/* =========================================================
+   МЕНЮ
+   ========================================================= */
+function refreshMenuProfileSelect(){
+  var sel=document.getElementById('menuProfile');if(!sel)return;
+  if(profiles.length===0){sel.innerHTML='<option>— нет профилей —</option>';return;}
+  var html='';
+  for(var i=0;i<profiles.length;i++){
+    var p=profiles[i],s=p.id===activeProfileId?' selected':'';
+    html+='<option value="'+p.id+'"'+s+'>'+escapeHtml(p.name)+'</option>';
+  }
+  sel.innerHTML=html;
+}
+function onMenuProfileChange(){
+  var sel=document.getElementById('menuProfile');
+  var mealSel=document.getElementById('menuMealsPerDay');
+  if(!sel||!mealSel)return;
+  var p=findProfile(sel.value);
+  if(p&&p.mealsPerDay)mealSel.value=String(p.mealsPerDay);
+  updateBudgetHint();
+  renderMenuOutput();renderCycleOnMenu();renderMenuProfilesSummary();
+}
+function updateBudgetHint(){
+  var hintEl=document.getElementById('budgetHint');if(!hintEl)return;
+  var budgetEl=document.getElementById('menuBudget');
+  var servEl=document.getElementById('menuServings');
+  var budget=budgetEl?(parseFloat(budgetEl.value)||0):0;
+  var servings=servEl?(parseInt(servEl.value,10)||1):1;
+  if(budget<=0){hintEl.textContent='';return;}
+  var perPersonDay=budget/servings/7;
+  var tier=budgetToTier(perPersonDay);
+  var tierStr={budget:'🟢 бюджетные',mid:'🔵 средние',premium:'🔴 премиум'}[tier];
+  hintEl.innerHTML='~'+Math.round(perPersonDay)+' ₽ / чел / день → категория <strong>'+tierStr+'</strong>';
+}
+function budgetToTier(perPersonDay){
+  if(perPersonDay<800)return 'budget';
+  if(perPersonDay<1500)return 'mid';
+  return 'premium';
+}
+function getTierFilter(){
+  var sel=document.getElementById('menuPriceFilter');
+  var filter=sel?sel.value:'auto';
+  if(filter!=='auto')return filter;
+  var budgetEl=document.getElementById('menuBudget');
+  var servEl=document.getElementById('menuServings');
+  var budget=budgetEl?(parseFloat(budgetEl.value)||0):0;
+  var servings=servEl?(parseInt(servEl.value,10)||1):1;
+  if(budget<=0)return 'all';
+  var perPersonDay=budget/servings/7;
+  return budgetToTier(perPersonDay);
+}
+function dishMatchesTier(dish,tier){
+  if(tier==='all'||tier==='premium')return true;
+  if(tier==='budget')return dish.priceTier==='budget';
+  if(tier==='budget_mid')return dish.priceTier==='budget'||dish.priceTier==='mid';
+  return true;
+}
+function renderMenuProfilesSummary(){
+  var box=document.getElementById('menuProfilesSummary');if(!box)return;
+  var keys=Object.keys(menuPlans);
+  if(keys.length===0){box.innerHTML='';return;}
+  var html='<div class="card"><h3>📂 Сохранённые меню</h3>';
+  var selEl=document.getElementById('menuProfile');
+  var currentId=selEl?selEl.value:'';
+  for(var i=0;i<keys.length;i++){
+    var pid=keys[i],plan=menuPlans[pid],p=findProfile(pid);
+    if(!p||!plan)continue;
+    var isCurrent=pid===currentId;
+    var priceTag=plan.priceTierUsed?(' · 🎯 '+({budget:'бюджет',mid:'среднее',premium:'премиум',budget_mid:'бюдж+сред',all:'все'}[plan.priceTierUsed]||plan.priceTierUsed)):'';
+    var costTag=plan.estimatedCost?' · '+Math.round(plan.estimatedCost)+' ₽':'';
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #ecf0f1;font-size:14px;">'+
+      '<span><strong>'+escapeHtml(p.name)+'</strong> — '+plan.servings+' порц., 7 дней'+
+      (plan.mealsPerDay?' · '+plan.mealsPerDay+' приём.':'')+
+      (plan.budget?' · '+plan.budget+' ₽':'')+costTag+priceTag+
+      (plan.phaseName?' · '+plan.phaseEmoji+' '+plan.phaseName:'')+'</span>'+
+      '<button class="btn btn-secondary btn-mini" onclick="openMenuFor(\''+pid+'\')"'+(isCurrent?' disabled':'')+'>Открыть</button></div>';
+  }
+  html+='</div>';
+  box.innerHTML=html;
+}
+function openMenuFor(pid){
+  var sel=document.getElementById('menuProfile');if(sel)sel.value=pid;
+  var p=findProfile(pid);
+  var mealSel=document.getElementById('menuMealsPerDay');
+  if(p&&p.mealsPerDay&&mealSel)mealSel.value=String(p.mealsPerDay);
+  var budgetEl=document.getElementById('menuBudget');
+  var plan=menuPlans[pid];
+  if(budgetEl&&plan&&plan.budget)budgetEl.value=plan.budget;
+  var servEl=document.getElementById('menuServings');
+  if(servEl&&plan&&plan.servings)servEl.value=plan.servings;
+  updateBudgetHint();
+  renderMenuOutput();renderCycleOnMenu();renderMenuProfilesSummary();
+}
+function renderCycleOnMenu(){
+  var box=document.getElementById('cycleOnMenu');if(!box)return;
+  var sel=document.getElementById('menuProfile'),pid=sel?sel.value:'';
+  var p=findProfile(pid),cycle=getCycleInfo(p);
+  if(!cycle){box.innerHTML='';return;}
+  var info=cycle.info,productsHtml='';
+  for(var j=0;j<info.products.length;j++)productsHtml+='<span>'+info.products[j]+'</span>';
+  box.innerHTML='<div class="cycle-card"><div class="cycle-header">'+
+    '<div class="phase-badge" style="background:'+info.color+';">'+info.emoji+' '+info.name+' — день '+cycle.dayInCycle+' из '+cycle.cycleLen+'</div>'+
+    '<div class="cycle-day">До менструации ≈ '+cycle.daysToNext+' дн.</div></div>'+
+    '<div style="font-size:13px;color:#2c3e50;">Приоритет: <strong>'+info.nutrients.join(', ').toLowerCase()+'</strong>.</div>'+
+    '<div class="phase-products">'+productsHtml+'</div></div>';
+}
+function dishContains(dish,cat){return dish.contains&&dish.contains.indexOf(cat)!==-1;}
+function filterDishes(profile,season,priceTier){
+  var out=[],i,s;
+  var showSweets=profile.likesSweets!==false;
+  for(i=0;i<DISHES.length;i++){
+    var d=DISHES[i];
+    if(!showSweets&&d.tags&&d.tags.indexOf('sweet')!==-1)continue;
+    if(!dishMatchesTier(d,priceTier))continue;
+    var okSeason=false;
+    for(s=0;s<d.seasons.length;s++)if(d.seasons[s]==='всесезон'||d.seasons[s]===season){okSeason=true;break;}
+    if(!okSeason)continue;
+    var okGoal=false;
+    for(s=0;s<d.goals.length;s++)if(d.goals[s]===profile.goal){okGoal=true;break;}
+    if(!okGoal)continue;
+    if(profile.vegetarian){
+      var isVeg=false;
+      for(s=0;s<d.tags.length;s++)if(d.tags[s]==='vegetarian'){isVeg=true;break;}
+      if(!isVeg)continue;
+    }
+    if(profile.stress){
+      var isStress=false;
+      for(s=0;s<d.tags.length;s++)if(d.tags[s]==='stress_friendly'){isStress=true;break;}
+      if(!isStress)continue;
+    }
+    if(profile.likesFish===false&&dishContains(d,'fish'))continue;
+    if(profile.likesMeat===false&&dishContains(d,'meat'))continue;
+    if(profile.likesEggs===false&&dishContains(d,'eggs'))continue;
+    if(profile.likesDairy===false&&dishContains(d,'dairy'))continue;
+    var text=(d.name+' '+d.ing.map(function(x){return x[0];}).join(' ')).toLowerCase();
+    var block=false;
+    var allergies=profile.allergies||[];
+    for(s=0;s<allergies.length;s++)if(allergies[s]&&text.indexOf(allergies[s])!==-1){block=true;break;}
+    if(block)continue;
+    var dislikes=profile.dislikes||[];
+    for(s=0;s<dislikes.length;s++)if(dislikes[s]&&text.indexOf(dislikes[s])!==-1){block=true;break;}
+    if(block)continue;
+    out.push(d);
+  }
+  return out;
+}
+function pickDishForTarget(pool,baseCat,recentIds,targetKcal,currentPhase,favorites){
+  var candidates=[],i;
+  for(i=0;i<pool.length;i++){
+    if(pool[i].cat!==baseCat)continue;
+    if(recentIds.indexOf(pool[i].id)!==-1)continue;
+    candidates.push(pool[i]);
+  }
+  if(candidates.length===0){
+    for(i=0;i<pool.length;i++)if(pool[i].cat===baseCat)candidates.push(pool[i]);
+  }
+  if(candidates.length===0)return null;
+  var best=null,bestScore=Infinity;
+  for(i=0;i<candidates.length;i++){
+    var d=candidates[i];
+    var phaseMatch=(currentPhase&&d.phases&&d.phases.indexOf(currentPhase)!==-1);
+    var favBonus=(favorites&&favorites.indexOf(d.id)!==-1)?80:0;
+    var score=Math.abs(d.kcal-targetKcal)-(phaseMatch?100:0)-favBonus+Math.random()*40;
+    if(score<bestScore){bestScore=score;best=d;}
+  }
+  return best;
+}
+function buildDay(pool,dailyTarget,weekUsed,currentPhase,favorites,dayIdx,mealPlan){
+  var day={meals:[]};
+  var dayKcal=0;
+  var dayUsed=[];
+  for(var c=0;c<mealPlan.length;c++){
+    var cfg=mealPlan[c];
+    var remaining=dailyTarget-dayKcal;
+    var isLast=(c===mealPlan.length-1);
+    var target;
+    if(isLast){target=remaining;}
+    else{
+      var sharesLeft=0;
+      for(var k=c;k<mealPlan.length;k++)sharesLeft+=mealPlan[k].share;
+      target=remaining*(cfg.share/sharesLeft);
+    }
+    var recentIds=dayUsed.concat(weekUsed.slice(-10));
+    var dish=pickDishForTarget(pool,cfg.cat,recentIds,target,currentPhase,favorites);
+    if(!dish)continue;
+    var pm=(currentPhase&&dish.phases&&dish.phases.indexOf(currentPhase)!==-1);
+    day.meals.push({
+      catName:cfg.key,baseCat:cfg.cat,
+      label:(MEAL_EMOJI_BY_KEY[cfg.key]||'🍽')+' '+cfg.key,
+      dish:dish,phaseMatch:pm,factor:1,boost:false
+    });
+    dayUsed.push(dish.id);weekUsed.push(dish.id);dayKcal+=dish.kcal;
+  }
+  if(dayKcal<dailyTarget*0.9&&(dailyTarget-dayKcal)>150){
+    var boostBase=(dailyTarget-dayKcal>400)?'Обед':'Перекус';
+    var recentIds2=dayUsed.concat(weekUsed.slice(-10));
+    var boost=pickDishForTarget(pool,boostBase,recentIds2,dailyTarget-dayKcal,currentPhase,favorites);
+    if(boost){
+      var pm2=(currentPhase&&boost.phases&&boost.phases.indexOf(currentPhase)!==-1);
+      day.meals.push({
+        catName:'Дополнительно',baseCat:boostBase,label:'➕ Дополнительно',
+        dish:boost,phaseMatch:pm2,factor:1,boost:true
+      });
+      dayKcal+=boost.kcal;
+    }
+  }
+  day.totalKcal=dayKcal;
+  day.boosted=(day.meals.length>mealPlan.length);
+  return day;
+}
+
+/* =========================================================
+   ПОИСК ЦЕНЫ И РАСЧЁТ СТОИМОСТИ
+   ========================================================= */
+function findPriceKey(name){
+  if(!name) return null;
+  if(PRICES[name]) return name;
+  var alt={
+    'Яйцо':'Яйца','Помидор':'Помидоры','Томаты':'Помидоры',
+    'Куриное филе':'Куриная грудка','Молоко':'Молоко 2.5%'
+  };
+  if(alt[name] && PRICES[alt[name]]) return alt[name];
+  var lower=name.toLowerCase();
+  for(var k in PRICES){
+    if(k.toLowerCase()===lower) return k;
+  }
+  return null;
+}
+function calcIngredientCost(priceKey, amount, unit, store){
+  var priceData=PRICES[priceKey];
+  if(!priceData)return null;
+  var p=priceData[store];
+  if(!p)return null;
+  var grams=amount;
+  if(ING_UNIT_TO_GRAMS[unit]){grams=amount*ING_UNIT_TO_GRAMS[unit];unit='г';}
+  if(p.priceType==='kg'){
+    var kg=0;
+    if(unit==='г'||unit==='мл')kg=grams/1000;
+    else if(unit==='кг'||unit==='л')kg=grams;
+    else kg=grams/1000;
+    if(p.minOrderQty){
+      var minKg=p.minOrderQty/1000;
+      if(kg<minKg)kg=minKg;
+    }
+    return {cost:kg*p.price,packs:kg,label:p.label||'за кг',unit:'кг'};
+  } else {
+    var packContent=p.packContent||1;
+    var packUnit=p.packUnit||'шт';
+    var inPack=grams;
+    if(unit==='г'&&packUnit==='кг')inPack=grams/1000;
+    else if(unit==='кг'&&packUnit==='г')inPack=grams*1000;
+    else if(unit==='мл'&&packUnit==='л')inPack=grams/1000;
+    else if(unit==='л'&&packUnit==='мл')inPack=grams*1000;
+    var packs=Math.ceil(inPack/packContent);
+    if(p.minOrderQty&&packs<p.minOrderQty)packs=p.minOrderQty;
+    if(packs<1)packs=1;
+    return {cost:packs*p.price,packs:packs,label:p.label||('упаковка '+packContent+' '+packUnit),unit:packUnit};
+  }
+}
+function dishUnitCost(dish, store){
+  var total=0;
+  for(var i=0;i<dish.ing.length;i++){
+    var ing=dish.ing[i];
+    var priceKey=findPriceKey(ing[0]);
+    if(!priceKey)continue;
+    var priceData=PRICES[priceKey];
+    var p=priceData[store];
+    if(!p)continue;
+    var amt=parseFloat(ing[1]), unit=ing[2];
+    if(ING_UNIT_TO_GRAMS[unit]){amt*=ING_UNIT_TO_GRAMS[unit];unit='г';}
+    if(p.priceType==='kg'){
+      var kg=1;
+      if(unit==='г')kg=amt/1000;
+      else if(unit==='кг')kg=amt;
+      else if(unit==='мл')kg=amt/1000;
+      else if(unit==='л')kg=amt;
+      else kg=amt/1000;
+      if(p.minOrderQty){var minKg=p.minOrderQty/1000;if(kg<minKg)kg=minKg;}
+      total+=kg*p.price;
+    } else {
+      var packContent=p.packContent||1;
+      var packUnit=p.packUnit||'шт';
+      var inPack=amt;
+      if(unit==='г'&&packUnit==='кг')inPack=amt/1000;
+      else if(unit==='кг'&&packUnit==='г')inPack=amt*1000;
+      else if(unit==='мл'&&packUnit==='л')inPack=amt/1000;
+      else if(unit==='л'&&packUnit==='мл')inPack=amt*1000;
+      var packs=Math.ceil(inPack/packContent);
+      if(p.minOrderQty&&packs<p.minOrderQty)packs=p.minOrderQty;
+      if(packs<1)packs=1;
+      total+=packs*p.price;
+    }
+  }
+  return total;
+}
+function computeMenuCost(plan, store){
+  var totals={};
+  for(var d=0;d<plan.days.length;d++){
+    var day=plan.days[d];
+    for(var m=0;m<day.meals.length;m++){
+      var meal=day.meals[m];
+      var factor=meal.factor||1;
+      for(var g=0;g<meal.dish.ing.length;g++){
+        var ing=meal.dish.ing[g];
+        var name=ing[0], amount=parseFloat(ing[1])*factor*plan.servings, unit=ing[2];
+        var key=name+'|'+unit;
+        if(!totals[key])totals[key]={name:name,unit:unit,amount:0};
+        totals[key].amount+=amount;
+      }
+    }
+  }
+  var total=0;
+  for(var k in totals){
+    var it=totals[k];
+    var pk=findPriceKey(it.name);
+    if(!pk)continue;
+    var r=calcIngredientCost(pk, it.amount, it.unit, store);
+    if(r)total+=r.cost;
+  }
+  return total;
+}
+function computeAllMenusCost(store){
+  var sum=0;
+  for(var pid in menuPlans){
+    var plan=menuPlans[pid];
+    if(!plan||!plan.days)continue;
+    sum+=computeMenuCost(plan, store);
+  }
+  return sum;
+}
+
+/* =========================================================
+   ОПТИМИЗАТОР МЕНЮ ПОД БЮДЖЕТ
+   ========================================================= */
+function optimizeAllMenusToBudget(budget, tolerance){
+  tolerance=tolerance||1500;
+  var ids=Object.keys(menuPlans);
+  if(ids.length===0||budget<=0)return computeAllMenusCost(currentStore);
+  var pools={},usedPerPlan={};
+  for(var i=0;i<ids.length;i++){
+    var pid=ids[i],plan=menuPlans[pid],profile=findProfile(pid);
+    if(!profile||!plan||!plan.days){pools[pid]=[];usedPerPlan[pid]={};continue;}
+    var tier=plan.priceTierUsed||'all';
+    pools[pid]=filterDishes(profile,plan.season,tier);
+    var used={};
+    for(var d=0;d<plan.days.length;d++)
+      for(var m=0;m<plan.days[d].meals.length;m++)
+        used[plan.days[d].meals[m].dish.id]=true;
+    usedPerPlan[pid]=used;
+  }
+  var cost=computeAllMenusCost(currentStore);
+  var iter=0,maxIter=200;
+  while(iter<maxIter){
+    var diff=cost-budget;
+    if(Math.abs(diff)<=tolerance)break;
+    var over=diff>0;
+    var bestSwap=null,bestDelta=over?0:0;
+    for(var i2=0;i2<ids.length;i2++){
+      var pid2=ids[i2],plan2=menuPlans[pid2],pool=pools[pid2];
+      if(!plan2||!plan2.days||!pool)continue;
+      var used2=usedPerPlan[pid2];
+      for(var d2=0;d2<plan2.days.length;d2++){
+        for(var m2=0;m2<plan2.days[d2].meals.length;m2++){
+          var meal=plan2.days[d2].meals[m2];
+          var curCost=dishUnitCost(meal.dish,currentStore)*(meal.factor||1);
+          for(var pi=0;pi<pool.length;pi++){
+            var cand=pool[pi];
+            if(cand.cat!==meal.baseCat)continue;
+            if(cand.id===meal.dish.id)continue;
+            if(used2[cand.id])continue;
+            var newCost=dishUnitCost(cand,currentStore)*(meal.factor||1);
+            var delta=newCost-curCost;
+            if(over&&delta<-30){
+              if(bestSwap===null||delta<bestDelta){bestSwap={pid:pid2,d:d2,m:m2,dish:cand,oldId:meal.dish.id};bestDelta=delta;}
+            } else if(!over&&delta>30){
+              if(bestSwap===null||delta>bestDelta){bestSwap={pid:pid2,d:d2,m:m2,dish:cand,oldId:meal.dish.id};bestDelta=delta;}
+            }
+          }
+        }
+      }
+    }
+    if(!bestSwap)break;
+    var curPlan=menuPlans[bestSwap.pid];
+    curPlan.days[bestSwap.d].meals[bestSwap.m].dish=bestSwap.dish;
+    delete usedPerPlan[bestSwap.pid][bestSwap.oldId];
+    usedPerPlan[bestSwap.pid][bestSwap.dish.id]=true;
+    cost=computeAllMenusCost(currentStore);
+    iter++;
+  }
+  return cost;
+}
+
+function generateMenu(){
+  var sel=document.getElementById('menuProfile'),pid=sel?sel.value:'';
+  var p=findProfile(pid);
+  if(!p){alert('Сначала создайте профиль.');return;}
+  var servEl=document.getElementById('menuServings');
+  var servings=servEl?(parseInt(servEl.value,10)||1):1;
+  var mealCountEl=document.getElementById('menuMealsPerDay');
+  var mealsPerDay=mealCountEl?(parseInt(mealCountEl.value,10)||5):5;
+  if(!MEAL_PLANS[mealsPerDay])mealsPerDay=5;
+  p.mealsPerDay=mealsPerDay;
+  save('profiles_v2',profiles);
+  var mealPlan=MEAL_PLANS[mealsPerDay];
+  var budgetEl=document.getElementById('menuBudget');
+  var budget=budgetEl?(parseFloat(budgetEl.value)||0):0;
+  var priceTier=getTierFilter();
+  var useFavoritesEl=document.getElementById('useFavorites');
+  var useFavorites=useFavoritesEl?useFavoritesEl.checked:false;
+  var favorites=p.favorites||[];
+  var season=currentSeason();
+  var pool=filterDishes(p,season,priceTier);
+  if(pool.length===0){alert('Нет подходящих блюд под выбранный ценовой фильтр.');return;}
+  if(useFavorites&&favorites.length>0){
+    var favPool=[];
+    for(var i=0;i<pool.length;i++)if(favorites.indexOf(pool[i].id)!==-1)favPool.push(pool[i]);
+    if(favPool.length===0){alert('Ни одно из любимых блюд не подходит.');return;}
+    pool=favPool;
+  }
+  var k=calcKBJU(p);
+  var dailyTarget=k.kcal;
+  var cycle=getCycleInfo(p);
+  var currentPhase=cycle?cycle.phase:null;
+  var daysNames=['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+  var days=[],weekUsed=[];
+  for(var d=0;d<7;d++){
+    var day=buildDay(pool,dailyTarget,weekUsed,currentPhase,favorites,d,mealPlan);
+    day.name=daysNames[d];
+    days.push(day);
+  }
+  menuPlans[p.id]={
+    profileId:p.id,profileName:p.name,servings:servings,days:days,
+    season:season,phase:currentPhase,
+    phaseName:cycle?cycle.info.name:null,phaseEmoji:cycle?cycle.info.emoji:null,
+    dailyKcal:dailyTarget,mealsPerDay:mealsPerDay,
+    budget:budget,priceTierUsed:priceTier
+  };
+  var costBefore=computeAllMenusCost(currentStore);
+  var costAfter=costBefore;
+  if(budget>0){costAfter=optimizeAllMenusToBudget(budget,1500);}
+  for(var pid2 in menuPlans){
+    var pl=menuPlans[pid2];
+    if(!pl||!pl.days)continue;
+    pl.estimatedCost=computeMenuCost(pl,currentStore);
+  }
+  menuPlans[p.id].costBeforeOpt=costBefore;
+  menuPlans[p.id].costAfterOpt=costAfter;
+  save('menuPlans_v3',menuPlans);
+  renderMenuOutput();renderMenuProfilesSummary();renderCycleOnMenu();renderQuestions();renderShopping();
+}
+function clearMenuPlan(){
+  var sel=document.getElementById('menuProfile'),pid=sel?sel.value:'';
+  if(!pid||!menuPlans[pid])return;
+  if(!confirm('Очистить меню для этого профиля?'))return;
+  delete menuPlans[pid];
+  save('menuPlans_v3',menuPlans);
+  renderMenuOutput();renderMenuProfilesSummary();renderShopping();
+}
+function renderMenuOutput(){
+  var out=document.getElementById('menuOutput');if(!out)return;
+  var sel=document.getElementById('menuProfile'),pid=sel?sel.value:'';
+  var plan=menuPlans[pid];
+  if(!plan){out.innerHTML='<div class="card"><div class="empty">Меню для этого профиля ещё не сгенерировано</div></div>';return;}
+  var dailyNorm=plan.dailyKcal||0;
+  var tierInfo='';
+  if(plan.priceTierUsed){
+    var tStr={budget:'🟢 бюджет',mid:'🔵 среднее',premium:'🔴 премиум',all:'🌐 все',budget_mid:'🟢🔵 бюджет+среднее'}[plan.priceTierUsed]||plan.priceTierUsed;
+    tierInfo='<span>Категория: <strong>'+tStr+'</strong></span>';
+  }
+  var budgetInfo=plan.budget?'<span>Бюджет: <strong>'+plan.budget+' ₽</strong></span>':'';
+  var costInfo='';
+  if(plan.estimatedCost){
+    var cStr='<span>Оценка корзины: <strong>'+Math.round(plan.estimatedCost)+' ₽</strong>';
+    if(plan.budget>0){
+      var dd=Math.round(plan.estimatedCost-plan.budget);
+      if(Math.abs(dd)<=1500)cStr+=' <span class="badge ok">в бюджете ±1500 ₽</span>';
+      else if(dd>0)cStr+=' <span class="badge warn">+'+dd+' ₽</span>';
+      else cStr+=' <span class="badge ok">−'+(-dd)+' ₽</span>';
+    }
+    cStr+='</span>';
+    costInfo=cStr;
+  }
+  var html='<div class="card"><h2>Меню для '+escapeHtml(plan.profileName)+' на неделю</h2>'+
+    '<div class="stats-mini">'+
+      '<span>Сезон: <strong>'+seasonEmoji(plan.season)+' '+plan.season+'</strong></span>'+
+      '<span>Порций: <strong>'+plan.servings+'</strong></span>'+
+      '<span>Приёмов/день: <strong>'+(plan.mealsPerDay||5)+'</strong></span>'+
+      (plan.phaseName?'<span>Фаза: <strong>'+plan.phaseEmoji+' '+plan.phaseName+'</strong></span>':'')+
+      (dailyNorm?'<span>Норма/день: <strong>'+dailyNorm+' ккал</strong></span>':'')+
+      tierInfo+budgetInfo+costInfo+
+    '</div></div>';
+  if(plan.budget>0&&plan.estimatedCost&&Math.abs(plan.estimatedCost-plan.budget)>1500){
+    html+='<div class="tip warn">⚠️ Не удалось уложиться в бюджет ±1500 ₽. Разница: '+Math.round(plan.estimatedCost-plan.budget)+' ₽.</div>';
+  }
+  for(var i=0;i<plan.days.length;i++){
+    var day=plan.days[i],dayKcal=0,dayProtein=0,dayFat=0,dayCarbs=0,m;
+    for(m=0;m<day.meals.length;m++){
+      dayKcal+=mealKcal(day.meals[m]);dayProtein+=mealP(day.meals[m]);
+      dayFat+=mealF(day.meals[m]);dayCarbs+=mealC(day.meals[m]);
+    }
+    var normNote='';
+    if(dailyNorm){
+      var diff=dayKcal-dailyNorm;
+      var diffPct=Math.round(Math.abs(diff)/dailyNorm*100);
+      if(diffPct<=7)normNote=' <span class="badge ok">норма</span>';
+      else if(diffPct<=15)normNote=' <span class="badge warn">'+(diff>0?'+':'')+diff+' ккал</span>';
+      else normNote=' <span class="badge over">'+(diff>0?'+':'')+diff+' ккал</span>';
+    }
+    var cardCls='day-card'+(day.boosted?' boosted':'');
+    var mealsHtml='';
+    if(day.meals.length===0){
+      mealsHtml='<div class="empty" style="padding:8px 0;font-size:13px;">Все приёмы пищи удалены</div>';
+    }
+    for(m=0;m<day.meals.length;m++){
+      var meal=day.meals[m];
+      var recipe=RECIPES[meal.dish.id]||{};
+      var freezeTag=recipe.freezable?' <span class="freeze-tag">🧊</span>':'';
+      var isSweet=(meal.dish.tags&&meal.dish.tags.indexOf('sweet')!==-1)?' 🍫':'';
+      var favStar=isFavorite(meal.dish.id)?'⭐':'☆';
+      var starCls=isFavorite(meal.dish.id)?' star-active':'';
+      var boostCls=meal.boost?' boost':'';
+      var factorVal=meal.factor||1;
+      var factorBadge;
+      if(Math.abs(factorVal-1)>0.01){
+        factorBadge='<span class="factor-badge" onclick="resetMealFactor('+i+','+m+')" title="Сбросить до ×1">×'+fmtFactor(factorVal)+'</span>';
+      } else {
+        factorBadge='<span class="factor-badge base" title="Базовая порция">×1</span>';
+      }
+      var tierBadge=priceTierBadge(meal.dish.priceTier);
+      mealsHtml+='<div class="meal-row'+boostCls+'">'+
+        '<span class="meal-label">'+meal.label+'</span>'+
+        '<span class="meal-name">'+escapeHtml(meal.dish.name)+tierBadge+isSweet+
+          (meal.phaseMatch?' <span style="color:#e91e63;font-size:12px;">🌙</span>':'')+freezeTag+factorBadge+
+        '</span>'+
+        '<span class="meal-kcal">'+mealKcal(meal)+' ккал</span>'+
+        '<button class="meal-icon-btn" onclick="changeMealFactor('+i+','+m+',-0.25)" title="Уменьшить">−</button>'+
+        '<button class="meal-icon-btn" onclick="changeMealFactor('+i+','+m+',0.25)" title="Увеличить">+</button>'+
+        '<button class="meal-icon-btn'+starCls+'" onclick="toggleFavorite(\''+meal.dish.id+'\')" title="В избранное">'+favStar+'</button>'+
+        '<button class="meal-icon-btn" onclick="openRecipe(\''+meal.dish.id+'\', '+plan.servings+')" title="Рецепт">📖</button>'+
+        '<button class="meal-icon-btn" onclick="openReplace('+i+','+m+')" title="Заменить">🔄</button>'+
+        '<button class="meal-icon-btn" onclick="deleteMeal('+i+','+m+')" title="Удалить">🗑</button>'+
+        '</div>';
+    }
+    html+='<div class="'+cardCls+'"><h4>'+day.name+' <span style="color:#7f8c8d;font-weight:400;font-size:13px;">— '+dayKcal+' ккал'+normNote+'</span>'+
+      '<span style="color:#95a5a6;font-size:11px;margin-left:8px;">Б'+dayProtein+' Ж'+dayFat+' У'+dayCarbs+'</span></h4>'+mealsHtml+'</div>';
+  }
+  out.innerHTML=html;
+}
+
+/* ----- Действия над приёмами ----- */
+function getActivePlan(){
+  var sel=document.getElementById('menuProfile'),pid=sel?sel.value:'';
+  return menuPlans[pid]||null;
+}
+function recomputePlanCost(){
+  var plan=getActivePlan();if(!plan)return;
+  plan.estimatedCost=computeMenuCost(plan,currentStore);
+  save('menuPlans_v3',menuPlans);
+}
+function changeMealFactor(dayIdx,mealIdx,delta){
+  var plan=getActivePlan();if(!plan)return;
+  if(!plan.days[dayIdx])return;
+  var meal=plan.days[dayIdx].meals[mealIdx];if(!meal)return;
+  var nf=Math.round(((meal.factor||1)+delta)*100)/100;
+  if(nf<0.25)nf=0.25;
+  if(nf>5)nf=5;
+  meal.factor=nf;
+  recomputePlanCost();
+  renderMenuOutput();renderMenuProfilesSummary();renderShopping();
+}
+function resetMealFactor(dayIdx,mealIdx){
+  var plan=getActivePlan();if(!plan)return;
+  var meal=plan.days[dayIdx] && plan.days[dayIdx].meals[mealIdx];if(!meal)return;
+  meal.factor=1;
+  recomputePlanCost();
+  renderMenuOutput();renderMenuProfilesSummary();renderShopping();
+}
+function deleteMeal(dayIdx,mealIdx){
+  var plan=getActivePlan();if(!plan)return;
+  if(!plan.days[dayIdx])return;
+  var meal=plan.days[dayIdx].meals[mealIdx];if(!meal)return;
+  if(!confirm('Удалить «'+meal.dish.name+'» из '+plan.days[dayIdx].name+'?'))return;
+  plan.days[dayIdx].meals.splice(mealIdx,1);
+  recomputePlanCost();
+  renderMenuOutput();renderMenuProfilesSummary();renderShopping();
+}
+function openReplace(dayIdx,mealIdx){
+  var plan=getActivePlan();if(!plan)return;
+  var currentMeal=plan.days[dayIdx] && plan.days[dayIdx].meals[mealIdx];if(!currentMeal)return;
+  replaceCtx.dayIdx=dayIdx;replaceCtx.mealIdx=mealIdx;
+  var p=findProfile(plan.profileId);
+  var season=currentSeason();
+  var tier=plan.priceTierUsed||'all';
+  var pool=filterDishes(p,season,tier);
+  var candidates=[];
+  for(var i=0;i<pool.length;i++)if(pool[i].cat===currentMeal.baseCat&&pool[i].id!==currentMeal.dish.id)candidates.push(pool[i]);
+  var subtitle=document.getElementById('replaceSubtitle');
+  if(subtitle)subtitle.textContent=plan.days[dayIdx].name+' · '+currentMeal.catName+' · сейчас: '+currentMeal.dish.name;
+  var html='';
+  if(candidates.length===0){html='<div class="empty">Нет альтернатив в этой категории</div>';}
+  else{
+    candidates.sort(function(a,b){return Math.abs(a.kcal-currentMeal.dish.kcal)-Math.abs(b.kcal-currentMeal.dish.kcal);});
+    var favs=p.favorites||[];
+    html='<ul class="replace-list">';
+    for(var j=0;j<candidates.length;j++){
+      var c=candidates[j];
+      var isFav=favs.indexOf(c.id)!==-1;
+      html+='<li onclick="doReplace(\''+c.id+'\')">'+
+        '<span>'+(isFav?'⭐ ':'')+escapeHtml(c.name)+' '+priceTierBadge(c.priceTier)+'</span>'+
+        '<span style="color:#3498db;font-weight:600;">'+c.kcal+' ккал</span></li>';
+    }
+    html+='</ul>';
+  }
+  document.getElementById('replaceContent').innerHTML=html;
+  document.getElementById('replaceModal').classList.add('active');
+}
+function closeReplace(){
+  var m=document.getElementById('replaceModal');if(m)m.classList.remove('active');
+}
+function doReplace(dishId){
+  var plan=getActivePlan();if(!plan)return;
+  var dish=findDish(dishId);if(!dish)return;
+  var meal=plan.days[replaceCtx.dayIdx] && plan.days[replaceCtx.dayIdx].meals[replaceCtx.mealIdx];
+  if(!meal)return;
+  meal.dish=dish;
+  var cycle=getCycleInfo(findProfile(plan.profileId));
+  meal.phaseMatch=cycle && dish.phases && dish.phases.indexOf(cycle.phase)!==-1;
+  meal.factor=1;
+  recomputePlanCost();
+  closeReplace();
+  renderMenuOutput();
+  renderMenuProfilesSummary();
+  renderShopping();
+}
+
+/* =========================================================
+   РЕЦЕПТЫ
+   ========================================================= */
+function openRecipe(dishId, servings){
+  recipeDishId=dishId;
+  recipeServings=servings||1;
+  renderRecipe();
+  var m=document.getElementById('recipeModal');if(m)m.classList.add('active');
+}
+function closeRecipe(){
+  var m=document.getElementById('recipeModal');if(m)m.classList.remove('active');
+  recipeDishId=null;
+}
+function changeRecipeServings(delta){
+  recipeServings=Math.max(1,recipeServings+delta);
+  renderRecipe();
+}
+function renderRecipe(){
+  if(!recipeDishId)return;
+  var dish=findDish(recipeDishId);if(!dish)return;
+  var recipe=RECIPES[recipeDishId]||{time:'?',freezable:false,steps:[],freezeTip:''};
+  var content=document.getElementById('recipeContent');if(!content)return;
+  var mult=recipeServings;
+  var ingHtml='';
+  for(var i=0;i<dish.ing.length;i++){
+    var ing=dish.ing[i];
+    var amt=parseFloat(ing[1])*mult;
+    var unitStr=ing[2];
+    if(ING_UNIT_TO_GRAMS[unitStr]) { amt=amt*ING_UNIT_TO_GRAMS[unitStr]; unitStr='г'; }
+    ingHtml+='<li><span>'+escapeHtml(ing[0])+'</span><span class="ing-amount">'+round(amt,1)+' '+unitStr+'</span></li>';
+  }
+  var stepsHtml='';
+  for(var s=0;s<recipe.steps.length;s++)stepsHtml+='<li>'+escapeHtml(recipe.steps[s])+'</li>';
+  var favBtn=isFavorite(dish.id)?
+    '<button class="btn btn-secondary btn-mini" onclick="toggleFavorite(\''+dish.id+'\'); renderRecipe();">⭐ В избранном</button>':
+    '<button class="btn btn-secondary btn-mini" onclick="toggleFavorite(\''+dish.id+'\'); renderRecipe();">☆ В избранное</button>';
+  var freezeHtml=recipe.freezable?
+    '<div class="freeze-box"><div class="freeze-title">🧊 Можно заморозить</div><div>'+(recipe.freezeTip||'')+'</div></div>':
+    '<div class="freeze-box no-freeze"><div class="freeze-title">Лучше съесть сразу</div></div>';
+  content.innerHTML=
+    '<div class="recipe-title">'+escapeHtml(dish.name)+' '+priceTierBadge(dish.priceTier)+'</div>'+
+    '<div class="recipe-meta">'+
+      '<span>⏱ '+recipe.time+'</span>'+
+      '<span>🔥 '+dish.kcal+' ккал</span>'+
+      '<span>Б '+dish.p+' · Ж '+dish.f+' · У '+dish.c+'</span>'+
+      '<span>'+dish.cat+'</span>'+
+    '</div>'+
+    '<div class="servings-stepper">Порций:'+
+      '<button onclick="changeRecipeServings(-1)">−</button>'+
+      '<span class="count">'+recipeServings+'</span>'+
+      '<button onclick="changeRecipeServings(1)">+</button>'+
+    '</div>'+
+    '<div class="recipe-section"><h3>Ингредиенты</h3><ul class="ing-list">'+ingHtml+'</ul></div>'+
+    '<div class="recipe-section"><h3>Приготовление</h3><ol class="step-list">'+stepsHtml+'</ol></div>'+
+    freezeHtml+
+    '<div class="btn-row" style="margin-top:12px;">'+favBtn+'</div>';
+}
+
+/* =========================================================
+   МАГАЗИН И ПОКУПКИ
+   ========================================================= */
+function renderStoreSelector(){
+  var box=document.getElementById('storeSelector');if(!box)return;
+  var html='';
+  for(var key in STORES){
+    var s=STORES[key];
+    var active=key===currentStore?' active':'';
+    html+='<button class="store-btn'+active+'" onclick="setStore(\''+key+'\')">'+s.name+'</button>';
+  }
+  box.innerHTML=html;
+}
+function setStore(key){
+  currentStore=key;
+  save('currentStore_v1',key);
+  renderStoreSelector();
+  renderShopping();
+  renderCompare();
+  if(getActivePlan()) recomputePlanCost();
+  renderMenuOutput();
+  renderMenuProfilesSummary();
+}
+function renderShopProfileSelector(){
+  var box=document.getElementById('shopProfileSelector');if(!box)return;
+  if(profiles.length===0){box.innerHTML='<div class="empty">Нет профилей</div>';return;}
+  var html='';
+  for(var i=0;i<profiles.length;i++){
+    var p=profiles[i];
+    var hasPlan=!!menuPlans[p.id];
+    var sel=hasPlan && shopSelectedProfiles[p.id]!==false;
+    if(!hasPlan)sel=false;
+    html+='<div class="switch-row">'+
+      '<input type="checkbox" id="shopProf_'+p.id+'" '+(sel?'checked':'')+' '+(hasPlan?'':'disabled')+
+      ' onchange="toggleShopProfile(\''+p.id+'\', this.checked)">'+
+      '<label for="shopProf_'+p.id+'">'+escapeHtml(p.name)+' '+
+      (hasPlan?'<span class="badge ok">есть меню</span>':'<span class="badge warn">нет меню</span>')+
+      '</label></div>';
+  }
+  box.innerHTML=html;
+}
+function toggleShopProfile(pid,val){shopSelectedProfiles[pid]=val;renderShopping();}
+function selectAllShopProfiles(){
+  for(var i=0;i<profiles.length;i++)if(menuPlans[profiles[i].id])shopSelectedProfiles[profiles[i].id]=true;
+  renderShopProfileSelector();renderShopping();
+}
+function selectNoneShopProfiles(){
+  shopSelectedProfiles={};
+  renderShopProfileSelector();renderShopping();
+}
+function getSelectedShopProfileIds(){
+  var ids=[];
+  for(var i=0;i<profiles.length;i++){
+    var pid=profiles[i].id;
+    if(menuPlans[pid]&&shopSelectedProfiles[pid]!==false)ids.push(pid);
+  }
+  return ids;
+}
+function renderShopping(){
+  var out=document.getElementById('shoppingOutput');if(!out)return;
+  var ids=getSelectedShopProfileIds();
+  if(ids.length===0){
+    out.innerHTML='<div class="empty">Выберите хотя бы один профиль с меню</div>';
+    renderCompare();
+    return;
+  }
+  var totals={};
+  for(var k=0;k<ids.length;k++){
+    var plan=menuPlans[ids[k]];
+    if(!plan||!plan.days)continue;
+    for(var d=0;d<plan.days.length;d++){
+      var day=plan.days[d];
+      for(var m=0;m<day.meals.length;m++){
+        var meal=day.meals[m];
+        var factor=meal.factor||1;
+        for(var g=0;g<meal.dish.ing.length;g++){
+          var ing=meal.dish.ing[g];
+          var amount=parseFloat(ing[1])*factor*plan.servings;
+          var key=ing[0]+'|'+ing[2];
+          if(!totals[key])totals[key]={name:ing[0],unit:ing[2],amount:0};
+          totals[key].amount+=amount;
+        }
+      }
+    }
+  }
+  var items=[],totalCost=0;
+  for(var kk in totals){
+    var it=totals[kk];
+    var pk=findPriceKey(it.name);
+    if(!pk){items.push({name:it.name,amount:it.amount,unit:it.unit,cost:0,noPrice:true});continue;}
+    var r=calcIngredientCost(pk,it.amount,it.unit,currentStore);
+    if(!r){items.push({name:it.name,amount:it.amount,unit:it.unit,cost:0,noPrice:true});continue;}
+    totalCost+=r.cost;
+    items.push({name:it.name,amount:it.amount,unit:it.unit,cost:r.cost,packs:r.packs,label:r.label,priceKey:pk,store:currentStore});
+  }
+  items.sort(function(a,b){return a.name.localeCompare(b.name,'ru');});
+  var html='<ul class="shop-list">';
+  for(var i2=0;i2<items.length;i2++){
+    var it2=items[i2];
+    var amt=it2.amount,amtStr;
+    if(it2.unit==='г'&&amt>=1000)amtStr=round(amt/1000,2)+' кг';
+    else if(it2.unit==='мл'&&amt>=1000)amtStr=round(amt/1000,2)+' л';
+    else amtStr=round(amt,0)+' '+it2.unit;
+    var storeData=it2.priceKey?PRICES[it2.priceKey][it2.store]:null;
+    var packInfo=storeData?'<span class="pack-info">'+storeData.label+'</span>':'';
+    html+='<li><span>'+escapeHtml(it2.name)+' <span class="qty">'+amtStr+'</span>'+packInfo+'</span>'+
+      '<span class="price">'+(it2.cost?round(it2.cost,0)+' ₽':'—')+'</span></li>';
+  }
+  html+='</ul>';
+  html+='<div class="total-row"><span>Итого по выбранным</span><span>'+round(totalCost,0)+' ₽</span></div>';
+  var budgetEl=document.getElementById('budget');
+  if(budgetEl){
+    var budget=parseFloat(budgetEl.value)||0;
+    if(budget>0){
+      var diff=totalCost-budget;
+      if(diff>0)html+='<div class="tip warn">Превышение бюджета на '+round(diff,0)+' ₽</div>';
+      else html+='<div class="tip green">Экономия '+round(-diff,0)+' ₽</div>';
+    }
+  }
+  out.innerHTML=html;
+  renderCompare();
+}
+function renderCompare(){
+  var card=document.getElementById('compareCard');
+  var out=document.getElementById('compareOutput');
+  if(!card||!out)return;
+  var ids=getSelectedShopProfileIds();
+  if(ids.length===0){card.style.display='none';return;}
+  card.style.display='block';
+  var rows=[],minCost=Infinity;
+  for(var key in STORES){
+    var cost=0;
+    for(var k=0;k<ids.length;k++)cost+=computeMenuCost(menuPlans[ids[k]],key);
+    if(cost<minCost)minCost=cost;
+    rows.push({key:key,name:STORES[key].name,cost:cost});
+  }
+  rows.sort(function(a,b){return a.cost-b.cost;});
+  var html='<table class="compare-table"><thead><tr><th>Магазин</th><th style="text-align:right">Стоимость</th></tr></thead><tbody>';
+  for(var i=0;i<rows.length;i++){
+    var r=rows[i];
+    var cls=r.cost===minCost?' best':'';
+    html+='<tr class="'+cls+'"><td>'+r.name+(r.cost===minCost?' 🏆':'')+'</td><td class="price">'+round(r.cost,0)+' ₽</td></tr>';
+  }
+  html+='</tbody></table>';
+  out.innerHTML=html;
+}
+
+/* =========================================================
+   СОВЕТЫ
+   ========================================================= */
+function renderTips(){
+  var seasonal=document.getElementById('seasonalTips');
+  if(seasonal){
+    var season=currentSeason();
+    var info=SEASONAL[season];
+    var productsHtml='';
+    for(var i=0;i<info.products.length;i++)productsHtml+='<span>'+info.products[i]+'</span>';
+    seasonal.innerHTML='<div class="tip">'+seasonEmoji(season)+' <strong>'+season+'</strong>: '+info.tip+'</div>'+
+      '<div class="phase-products">'+productsHtml+'</div>';
+  }
+  var phaseCard=document.getElementById('phaseTipsCard');
+  var phaseTips=document.getElementById('phaseTips');
+  if(phaseCard&&phaseTips){
+    var sel=document.getElementById('menuProfile');
+    var pid=sel?sel.value:activeProfileId;
+    var p=findProfile(pid);
+    var cycle=getCycleInfo(p);
+    if(cycle){
+      phaseCard.style.display='block';
+      var info2=cycle.info;
+      phaseTips.innerHTML='<div class="tip" style="border-left-color:'+info2.color+';">'+
+        '<strong>'+info2.emoji+' '+info2.name+'</strong> — '+info2.days+'<br>'+info2.tip+'</div>'+
+        '<div><strong>Нутриенты:</strong> '+info2.nutrients.join(', ')+'</div>'+
+        '<div style="margin-top:6px;"><strong>Продукты:</strong> '+info2.products.join(', ')+'</div>'+
+        '<div style="margin-top:6px;"><strong>Калории:</strong> ×'+info2.kcalAdjust+'</div>';
+    } else {
+      phaseCard.style.display='none';
+    }
+  }
+  var money=document.getElementById('moneyTips');
+  if(money){
+    var html='';
+    for(var i=0;i<MONEY_TIPS.length;i++)html+='<div class="tip">'+MONEY_TIPS[i]+'</div>';
+    money.innerHTML=html;
+  }
+  var prep=document.getElementById('prepTips');
+  if(prep){
+    var prepDishes=[];
+    for(var i=0;i<DISHES.length;i++){
+      var d=DISHES[i];
+      var r=RECIPES[d.id];
+      if(r&&r.freezable)prepDishes.push(d);
+    }
+    var prepHtml='<div class="tip green">🧊 <strong>'+prepDishes.length+' блюд</strong> можно заморозить — готовьте впрок.</div>';
+    var show=Math.min(prepDishes.length,12);
+    for(var i=0;i<show;i++){
+      var d=prepDishes[i];
+      prepHtml+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #ecf0f1;font-size:13px;gap:10px;">'+
+        '<span>'+escapeHtml(d.name)+'</span>'+
+        '<span style="color:#1976d2;text-align:right;">'+(RECIPES[d.id].freezeTip||'')+'</span></div>';
+    }
+    prep.innerHTML=prepHtml;
+  }
+  renderQuestions();
+}
+function renderQuestions(){
+  var box=document.getElementById('questions');
+  if(!box)return;
+  var p=findProfile(activeProfileId);
+  var questions=[];
+  if(!p){
+    box.innerHTML='<div class="question">Создайте профиль, чтобы получить рекомендации.</div>';
+    return;
+  }
+  if(!p.bodyFat)questions.push('Укажите % жира — расчёт КБЖУ станет точнее.');
+  if(!p.targetWeight&&p.goal==='lose')questions.push('Укажите желаемый вес — рассчитаем срок достижения.');
+  if(p.gender==='female'&&!p.cycleEnabled)questions.push('Включите учёт менструального цикла — подстроим меню под фазу.');
+  if(!p.allergies||p.allergies.length===0)questions.push('Укажите аллергии — исключим опасные продукты.');
+  var favCount=(p.favorites||[]).length;
+  if(favCount<3)questions.push('Добавьте любимые блюда (⭐) — меню будет вкуснее. Сейчас: '+favCount+'.');
+  if(!menuPlans[p.id])questions.push('Сгенерируйте меню на вкладке «Меню».');
+  if(questions.length===0)questions.push('✨ Всё заполнено — можно готовить по плану!');
+  var html='';
+  for(var i=0;i<questions.length;i++)html+='<div class="question">'+questions[i]+'</div>';
+  box.innerHTML=html;
+}
+
+/* =========================================================
+   PWA: КНОПКА УСТАНОВКИ
+   ========================================================= */
+var deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  deferredPrompt = e;
+  var b = document.getElementById('installBanner');
+  if (b) b.style.display = 'flex';
+});
+function installPwa(){
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(function(){
+    var b = document.getElementById('installBanner');
+    if (b) b.style.display = 'none';
+    deferredPrompt = null;
+  });
+}
+window.addEventListener('appinstalled', function(){
+  var b = document.getElementById('installBanner');
+  if (b) b.style.display = 'none';
+});
+
+/* =========================================================
+   ИНИЦИАЛИЗАЦИЯ
+   ========================================================= */
+function init(){
+  profiles=load('profiles_v2')||[];
+  activeProfileId=load('activeProfile_v2');
+  menuPlans=load('menuPlans_v3')||{};
+  currentStore=load('currentStore_v1')||'svetofor';
+  if(STORES[currentStore]===undefined) currentStore='svetofor';
+
+  if(!findProfile(activeProfileId)&&profiles.length) activeProfileId=profiles[0].id;
+
+  renderProfiles();
+  refreshMenuProfileSelect();
+  onMenuProfileChange();
+  renderCycleOnMenu();
+  renderMenuOutput();
+  renderMenuProfilesSummary();
+  renderStoreSelector();
+  renderShopProfileSelector();
+  renderShopping();
+  renderTips();
+
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){closeRecipe();closeReplace();}
+  });
+  window.addEventListener('beforeunload',function(){
+    save('profiles_v2',profiles);
+    save('menuPlans_v3',menuPlans);
+    save('activeProfile_v2',activeProfileId);
+    save('currentStore_v1',currentStore);
+  });
+
+  /* Регистрация service worker для оффлайн-работы */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(e){
+        console.log('SW error', e);
+      });
+    });
+  }
+}
+window.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
